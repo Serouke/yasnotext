@@ -5,9 +5,6 @@ using YasnoText.UI.ViewModels;
 
 namespace YasnoText.UI;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
@@ -16,12 +13,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Создаём ViewModel и связываем с окном через DataContext.
-        // Все биндинги в XAML работают через этот контекст.
         _viewModel = new MainViewModel(new WpfThemeApplier());
         DataContext = _viewModel;
 
-        // Регистрируем горячие клавиши Ctrl+1, Ctrl+2, Ctrl+3.
+        // Горячие клавиши переключения профиля
         InputBindings.Add(new KeyBinding(
             new RelayCommand(() => _viewModel.ActivateById("standard")),
             Key.D1, ModifierKeys.Control));
@@ -33,5 +28,10 @@ public partial class MainWindow : Window
         InputBindings.Add(new KeyBinding(
             new RelayCommand(() => _viewModel.ActivateById("dyslexia")),
             Key.D3, ModifierKeys.Control));
+
+        // Горячая клавиша открытия документа
+        InputBindings.Add(new KeyBinding(
+            _viewModel.OpenDocumentCommand,
+            Key.O, ModifierKeys.Control));
     }
 }

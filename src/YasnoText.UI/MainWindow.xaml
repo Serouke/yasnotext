@@ -15,7 +15,6 @@
 
     <Window.Resources>
 
-        <!-- Стиль для кнопок панели инструментов -->
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
@@ -49,7 +48,6 @@
             </Setter>
         </Style>
 
-        <!-- Стиль для пунктов меню -->
         <Style TargetType="MenuItem">
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
             <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
@@ -61,9 +59,6 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
 
-        <!-- Стиль для рамки карточки профиля. -->
-        <!-- DataTrigger реагирует на свойство IsActive в ProfileItemViewModel -->
-        <!-- и переключает фон/рамку между обычным и активным состоянием. -->
         <Style x:Key="ProfileCardBorder" TargetType="Border">
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="CornerRadius" Value="4" />
@@ -80,7 +75,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Стиль для названия профиля внутри карточки -->
         <Style x:Key="ProfileCardTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="Medium" />
@@ -93,7 +87,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Стиль для подписи под названием -->
         <Style x:Key="ProfileCardHotkey" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Margin" Value="0,2,0,0" />
@@ -105,7 +98,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Шаблон одной карточки профиля -->
         <DataTemplate x:Key="ProfileCardTemplate" DataType="{x:Type vm:ProfileItemViewModel}">
             <Border Style="{StaticResource ProfileCardBorder}">
                 <Border.InputBindings>
@@ -126,7 +118,9 @@
         <!-- Главное меню -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Файл">
-                <MenuItem Header="Открыть..." InputGestureText="Ctrl+O" />
+                <MenuItem Header="Открыть..."
+                          InputGestureText="Ctrl+O"
+                          Command="{Binding OpenDocumentCommand}" />
                 <MenuItem Header="Сохранить" InputGestureText="Ctrl+S" />
                 <Separator />
                 <MenuItem Header="Выход" />
@@ -165,7 +159,9 @@
                 BorderThickness="0,0,0,1"
                 Padding="10,8">
             <StackPanel Orientation="Horizontal">
-                <Button Content="📂 Открыть" Style="{StaticResource ToolbarButton}" />
+                <Button Content="📂 Открыть"
+                        Command="{Binding OpenDocumentCommand}"
+                        Style="{StaticResource ToolbarButton}" />
                 <Button Content="💾 Сохранить" Style="{StaticResource ToolbarButton}" />
                 <Rectangle Width="1" Margin="6,2"
                            Fill="{DynamicResource BorderBrush}" />
@@ -198,7 +194,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
-                           Text="Готов к работе"
+                           Text="{Binding DocumentInfo}"
                            Foreground="{DynamicResource SecondaryTextBrush}" />
                 <TextBlock Grid.Column="1"
                            Text="{Binding StatusText}"
@@ -206,14 +202,12 @@
             </Grid>
         </Border>
 
-        <!-- Главная область: боковая панель + область чтения -->
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Боковая панель -->
             <Border Grid.Column="0"
                     Background="{DynamicResource SidebarBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
@@ -226,7 +220,6 @@
                                Foreground="{DynamicResource SecondaryTextBrush}"
                                Margin="0,0,0,8" />
 
-                    <!-- Карточки профилей рендерятся из коллекции через ItemsControl -->
                     <ItemsControl ItemsSource="{Binding Profiles}"
                                   ItemTemplate="{StaticResource ProfileCardTemplate}" />
 
@@ -262,39 +255,22 @@
                 </StackPanel>
             </Border>
 
-            <!-- Область чтения -->
+            <!-- Область чтения с биндингом на DocumentText -->
             <ScrollViewer Grid.Column="1"
                           VerticalScrollBarVisibility="Auto"
                           Background="{DynamicResource ReadingBackgroundBrush}">
-                <FlowDocumentScrollViewer x:Name="ReaderViewer"
-                                          Padding="32,24"
-                                          Background="{DynamicResource ReadingBackgroundBrush}"
-                                          Foreground="{DynamicResource TextBrush}"
-                                          VerticalScrollBarVisibility="Hidden">
-                    <FlowDocument FontFamily="{DynamicResource ReadingFontFamily}"
-                                  FontSize="{DynamicResource ReadingFontSize}"
-                                  FontWeight="{DynamicResource ReadingFontWeight}"
-                                  Foreground="{DynamicResource TextBrush}"
-                                  Background="{DynamicResource ReadingBackgroundBrush}"
-                                  PagePadding="0">
-                        <Paragraph FontSize="20" FontWeight="Medium">
-                            Добро пожаловать в ЯсноТекст
-                        </Paragraph>
-                        <Paragraph>
-                            Это приложение помогает превратить «недоступные» цифровые документы
-                            в удобную среду для людей с нарушениями зрения и дислексией.
-                        </Paragraph>
-                        <Paragraph>
-                            Чтобы начать, нажмите кнопку «Открыть» на панели инструментов
-                            или перетащите PDF/DOCX-файл в эту область.
-                        </Paragraph>
-                        <Paragraph>
-                            Выберите подходящий профиль слева — интерфейс автоматически
-                            подстроится под ваши потребности. Также можно использовать
-                            горячие клавиши: Ctrl+1, Ctrl+2, Ctrl+3.
-                        </Paragraph>
-                    </FlowDocument>
-                </FlowDocumentScrollViewer>
+                <TextBox Text="{Binding DocumentText, Mode=OneWay}"
+                         IsReadOnly="True"
+                         Background="{DynamicResource ReadingBackgroundBrush}"
+                         Foreground="{DynamicResource TextBrush}"
+                         FontFamily="{DynamicResource ReadingFontFamily}"
+                         FontSize="{DynamicResource ReadingFontSize}"
+                         FontWeight="{DynamicResource ReadingFontWeight}"
+                         BorderThickness="0"
+                         Padding="32,24"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Disabled" />
             </ScrollViewer>
         </Grid>
 
