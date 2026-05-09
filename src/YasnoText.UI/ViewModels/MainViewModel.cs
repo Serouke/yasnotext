@@ -50,7 +50,6 @@ public class MainViewModel : ViewModelBase
 
     private string _currentFontFamily = "Segoe UI";
     private double _currentFontSize = 14;
-    private double _currentLetterSpacing;
     private double _currentLineHeight = 1.5;
 
     public MainViewModel(IThemeApplier themeApplier)
@@ -183,19 +182,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// Дополнительный межбуквенный интервал в пикселях. Хранится в профиле,
-    /// но к области чтения сейчас не применяется: WPF TextBlock/TextBox не
-    /// поддерживает letter spacing нативно, переход на FlowDocument запланирован
-    /// отдельно.
-    /// </summary>
-    public double CurrentLetterSpacing
-    {
-        get => _currentLetterSpacing;
-        set => SetProperty(ref _currentLetterSpacing, value);
-    }
-
-    /// <summary>Множитель высоты строки (1.5 = полуторный).</summary>
+    /// <summary>Множитель межстрочного интервала (1.5 = полуторный).</summary>
     public double CurrentLineHeight
     {
         get => _currentLineHeight;
@@ -257,7 +244,6 @@ public class MainViewModel : ViewModelBase
         var profile = profileVm.Profile;
         CurrentFontFamily = profile.FontFamily;
         CurrentFontSize = profile.FontSize;
-        CurrentLetterSpacing = profile.LetterSpacing;
         CurrentLineHeight = profile.LineHeight;
 
         _themeApplier.Apply(profile.BaseThemeId);
@@ -281,7 +267,9 @@ public class MainViewModel : ViewModelBase
             FontFamily = CurrentFontFamily,
             FontSize = CurrentFontSize,
             IsBold = basis.IsBold,
-            LetterSpacing = CurrentLetterSpacing,
+            // LetterSpacing наследуется от исходного — UI его не редактирует
+            // (см. memory project_letter_spacing_dropped_from_ui).
+            LetterSpacing = basis.LetterSpacing,
             LineHeight = CurrentLineHeight,
             WordSpacing = basis.WordSpacing,
             Colors = basis.Colors,

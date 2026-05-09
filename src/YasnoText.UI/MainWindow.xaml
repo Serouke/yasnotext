@@ -251,15 +251,7 @@
                               Margin="0,0,0,10"
                               Foreground="Black" />
 
-                    <TextBlock Text="Межбуквенный интервал"
-                               FontSize="12"
-                               Margin="0,0,0,4"
-                               Foreground="{DynamicResource TextBrush}" />
-                    <Slider Minimum="0" Maximum="6"
-                            Value="{Binding CurrentLetterSpacing, Mode=TwoWay}"
-                            Margin="0,0,0,10" />
-
-                    <TextBlock Text="Высота строки"
+                    <TextBlock Text="Межстрочный интервал"
                                FontSize="12"
                                Margin="0,0,0,4"
                                Foreground="{DynamicResource TextBrush}" />
