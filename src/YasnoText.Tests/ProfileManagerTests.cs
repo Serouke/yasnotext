@@ -59,6 +59,29 @@ public class ProfileManagerTests : IDisposable
     }
 
     [Fact]
+    public void SaveUserProfiles_PreservesBaseThemeId()
+    {
+        // Пользовательский профиль создан на основе LowVision —
+        // после сохранения и загрузки тема должна по-прежнему быть low-vision,
+        // иначе при перезапуске жёлтый-на-чёрном превратится в обычный белый.
+        var manager = new ProfileManager(_testDirectory);
+        var customProfile = new ReadingProfile
+        {
+            Id = "custom-low-vision-copy",
+            Name = "Моё слабовидение",
+            FontSize = 30,
+            IsBuiltIn = false,
+            BaseThemeId = "low-vision"
+        };
+
+        manager.SaveUserProfiles(new[] { customProfile });
+        var loaded = manager.LoadAll();
+
+        var roundtrip = loaded.Single(p => p.Id == "custom-low-vision-copy");
+        Assert.Equal("low-vision", roundtrip.BaseThemeId);
+    }
+
+    [Fact]
     public void SaveUserProfiles_DoesNotPersistBuiltInProfiles()
     {
         // Встроенные профили не должны попадать в файл —

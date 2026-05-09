@@ -8,9 +8,9 @@ namespace YasnoText.UI.Themes;
 /// </summary>
 public class WpfThemeApplier : IThemeApplier
 {
-    public void Apply(string profileId)
+    public void Apply(string themeId)
     {
-        var themeName = profileId switch
+        var themeName = themeId switch
         {
             "standard" => "Standard",
             "low-vision" => "LowVision",

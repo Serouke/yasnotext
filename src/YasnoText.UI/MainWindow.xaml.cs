@@ -33,5 +33,25 @@ public partial class MainWindow : Window
         InputBindings.Add(new KeyBinding(
             _viewModel.OpenDocumentCommand,
             Key.O, ModifierKeys.Control));
+
+        // Сохранить текущие настройки как пользовательский профиль.
+        InputBindings.Add(new KeyBinding(
+            _viewModel.SaveProfileCommand,
+            Key.S, ModifierKeys.Control));
+
+        // Изменение размера шрифта. OemPlus/OemMinus — это «=/+» и «-» на
+        // основной части клавиатуры, Add/Subtract — на numpad.
+        InputBindings.Add(new KeyBinding(
+            _viewModel.IncreaseFontCommand,
+            Key.OemPlus, ModifierKeys.Control));
+        InputBindings.Add(new KeyBinding(
+            _viewModel.IncreaseFontCommand,
+            Key.Add, ModifierKeys.Control));
+        InputBindings.Add(new KeyBinding(
+            _viewModel.DecreaseFontCommand,
+            Key.OemMinus, ModifierKeys.Control));
+        InputBindings.Add(new KeyBinding(
+            _viewModel.DecreaseFontCommand,
+            Key.Subtract, ModifierKeys.Control));
     }
 }

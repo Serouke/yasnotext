@@ -73,6 +73,17 @@ public class BuiltInProfilesTests
     }
 
     [Fact]
+    public void All_BuiltInProfiles_HaveBaseThemeIdMatchingTheirId()
+    {
+        // У встроенных профилей BaseThemeId совпадает с Id —
+        // именно их Id используется как имена тем (StandardTheme.xaml и т.д.).
+        var profiles = BuiltInProfiles.All;
+
+        Assert.All(profiles, p =>
+            Assert.Equal(p.Id, p.BaseThemeId));
+    }
+
+    [Fact]
     public void Dyslexia_HasIncreasedSpacing()
     {
         // Увеличенные интервалы — ключевая особенность профиля для дислексии.

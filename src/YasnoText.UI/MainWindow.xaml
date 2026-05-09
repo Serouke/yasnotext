@@ -121,7 +121,9 @@
                 <MenuItem Header="Открыть..."
                           InputGestureText="Ctrl+O"
                           Command="{Binding OpenDocumentCommand}" />
-                <MenuItem Header="Сохранить" InputGestureText="Ctrl+S" />
+                <MenuItem Header="Сохранить как профиль..."
+                          InputGestureText="Ctrl+S"
+                          Command="{Binding SaveProfileCommand}" />
                 <Separator />
                 <MenuItem Header="Выход" />
             </MenuItem>
@@ -140,8 +142,12 @@
                           CommandParameter="{Binding Profiles[2]}" />
             </MenuItem>
             <MenuItem Header="Вид">
-                <MenuItem Header="Увеличить шрифт" InputGestureText="Ctrl++" />
-                <MenuItem Header="Уменьшить шрифт" InputGestureText="Ctrl+-" />
+                <MenuItem Header="Увеличить шрифт"
+                          InputGestureText="Ctrl++"
+                          Command="{Binding IncreaseFontCommand}" />
+                <MenuItem Header="Уменьшить шрифт"
+                          InputGestureText="Ctrl+-"
+                          Command="{Binding DecreaseFontCommand}" />
             </MenuItem>
             <MenuItem Header="Озвучка">
                 <MenuItem Header="Прочитать вслух" />
@@ -162,20 +168,27 @@
                 <Button Content="📂 Открыть"
                         Command="{Binding OpenDocumentCommand}"
                         Style="{StaticResource ToolbarButton}" />
-                <Button Content="💾 Сохранить" Style="{StaticResource ToolbarButton}" />
+                <Button Content="💾 Сохранить"
+                        Command="{Binding SaveProfileCommand}"
+                        ToolTip="Сохранить текущие настройки как новый профиль"
+                        Style="{StaticResource ToolbarButton}" />
                 <Rectangle Width="1" Margin="6,2"
                            Fill="{DynamicResource BorderBrush}" />
                 <Button Content="🔍 Распознать (OCR)" Style="{StaticResource ToolbarButton}" />
                 <Rectangle Width="1" Margin="6,2"
                            Fill="{DynamicResource BorderBrush}" />
-                <Button Content="A−" Style="{StaticResource ToolbarButton}" />
-                <TextBlock Text="14pt"
+                <Button Content="A−"
+                        Command="{Binding DecreaseFontCommand}"
+                        Style="{StaticResource ToolbarButton}" />
+                <TextBlock Text="{Binding CurrentFontSize, StringFormat={}{0:0}pt}"
                            VerticalAlignment="Center"
                            Margin="8,0"
                            MinWidth="40"
                            TextAlignment="Center"
                            Foreground="{DynamicResource TextBrush}" />
-                <Button Content="A+" Style="{StaticResource ToolbarButton}" />
+                <Button Content="A+"
+                        Command="{Binding IncreaseFontCommand}"
+                        Style="{StaticResource ToolbarButton}" />
                 <Rectangle Width="1" Margin="6,2"
                            Fill="{DynamicResource BorderBrush}" />
                 <Button Content="▶ Озвучить" Style="{StaticResource ToolbarButton}" />
@@ -233,44 +246,45 @@
                                FontSize="12"
                                Margin="0,0,0,4"
                                Foreground="{DynamicResource TextBrush}" />
-                    <ComboBox SelectedIndex="0"
+                    <ComboBox ItemsSource="{Binding AvailableFonts}"
+                              SelectedItem="{Binding CurrentFontFamily}"
                               Margin="0,0,0,10"
-                              Foreground="Black">
-                        <ComboBoxItem Content="Segoe UI" />
-                        <ComboBoxItem Content="Arial" />
-                        <ComboBoxItem Content="OpenDyslexic" />
-                    </ComboBox>
+                              Foreground="Black" />
 
                     <TextBlock Text="Межбуквенный интервал"
                                FontSize="12"
                                Margin="0,0,0,4"
                                Foreground="{DynamicResource TextBrush}" />
-                    <Slider Minimum="0" Maximum="10" Value="0" Margin="0,0,0,10" />
+                    <Slider Minimum="0" Maximum="6"
+                            Value="{Binding CurrentLetterSpacing, Mode=TwoWay}"
+                            Margin="0,0,0,10" />
 
                     <TextBlock Text="Высота строки"
                                FontSize="12"
                                Margin="0,0,0,4"
                                Foreground="{DynamicResource TextBrush}" />
-                    <Slider Minimum="1" Maximum="3" Value="1.5" TickFrequency="0.5" />
+                    <Slider Minimum="1" Maximum="3"
+                            Value="{Binding CurrentLineHeight, Mode=TwoWay}"
+                            TickFrequency="0.5" />
                 </StackPanel>
             </Border>
 
-            <!-- Область чтения с биндингом на DocumentText -->
+            <!-- Область чтения. TextBlock вместо TextBox — у TextBox нет
+                 LineHeight, который критичен для профиля «Дислексия». Выделение
+                 текста при этом теряется (в WPF TextBlock его не поддерживает),
+                 для read-only приложения это приемлемый компромисс MVP. -->
             <ScrollViewer Grid.Column="1"
                           VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
                           Background="{DynamicResource ReadingBackgroundBrush}">
-                <TextBox Text="{Binding DocumentText, Mode=OneWay}"
-                         IsReadOnly="True"
-                         Background="{DynamicResource ReadingBackgroundBrush}"
-                         Foreground="{DynamicResource TextBrush}"
-                         FontFamily="{DynamicResource ReadingFontFamily}"
-                         FontSize="{DynamicResource ReadingFontSize}"
-                         FontWeight="{DynamicResource ReadingFontWeight}"
-                         BorderThickness="0"
-                         Padding="32,24"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         VerticalScrollBarVisibility="Disabled" />
+                <TextBlock Text="{Binding DocumentText, Mode=OneWay}"
+                           Background="{DynamicResource ReadingBackgroundBrush}"
+                           Foreground="{DynamicResource TextBrush}"
+                           FontFamily="{Binding CurrentFontFamily}"
+                           FontSize="{Binding CurrentFontSize}"
+                           LineHeight="{Binding EffectiveLineHeight}"
+                           Padding="32,24"
+                           TextWrapping="Wrap" />
             </ScrollViewer>
         </Grid>
 

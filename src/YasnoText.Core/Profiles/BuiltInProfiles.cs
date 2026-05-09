@@ -23,6 +23,7 @@ public static class BuiltInProfiles
         LineHeight = 1.5,
         WordSpacing = 0,
         IsBuiltIn = true,
+        BaseThemeId = "standard",
         Colors = new ColorScheme
         {
             Name = "Светлая",
@@ -50,6 +51,7 @@ public static class BuiltInProfiles
         LineHeight = 1.7,
         WordSpacing = 2,
         IsBuiltIn = true,
+        BaseThemeId = "low-vision",
         Colors = new ColorScheme
         {
             Name = "Контрастная",
@@ -77,6 +79,7 @@ public static class BuiltInProfiles
         LineHeight = 2.2,
         WordSpacing = 4,
         IsBuiltIn = true,
+        BaseThemeId = "dyslexia",
         Colors = new ColorScheme
         {
             Name = "Бежевая",
