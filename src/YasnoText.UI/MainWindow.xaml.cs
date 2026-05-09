@@ -93,6 +93,14 @@ public partial class MainWindow : Window
             Key.Subtract, ModifierKeys.Control));
     }
 
+    private void OnWindowDragEnter(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            DropOverlay.Visibility = Visibility.Visible;
+        }
+    }
+
     private void OnWindowDragOver(object sender, DragEventArgs e)
     {
         // Курсор меняется на «копировать» только если перетаскивается файл.
@@ -102,8 +110,23 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnWindowDragLeave(object sender, DragEventArgs e)
+    {
+        // DragLeave событие срабатывает при переходе курсора между дочерними
+        // элементами окна. Скрываем overlay только если курсор реально вышел
+        // за пределы окна, иначе видим мерцание при движении мыши над меню.
+        var pos = e.GetPosition(this);
+        if (pos.X <= 0 || pos.Y <= 0 ||
+            pos.X >= ActualWidth || pos.Y >= ActualHeight)
+        {
+            DropOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private async void OnWindowDrop(object sender, DragEventArgs e)
     {
+        DropOverlay.Visibility = Visibility.Collapsed;
+
         if (!e.Data.GetDataPresent(DataFormats.FileDrop))
         {
             return;
