@@ -1,5 +1,6 @@
 using System.Text;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
 namespace YasnoText.Core.DocumentReaders;
 
@@ -8,6 +9,13 @@ namespace YasnoText.Core.DocumentReaders;
 /// Работает с PDF, у которых есть текстовый слой. Сканы (растровые PDF)
 /// вернутся с пустым текстом — для них нужен OCR.
 /// </summary>
+/// <remarks>
+/// Использует ContentOrderTextExtractor вместо прямого page.Text. page.Text
+/// возвращает символы в порядке content stream без учёта геометрии — соседние
+/// слова из разных Tj-операторов склеиваются в «ВведениеПроектная».
+/// ContentOrderTextExtractor смотрит на расстояния между letters и расставляет
+/// пробелы, как ожидает читатель.
+/// </remarks>
 public class PdfTextReader : IDocumentReader
 {
     public bool CanRead(string filePath)
@@ -39,7 +47,7 @@ public class PdfTextReader : IDocumentReader
 
         foreach (var page in document.GetPages())
         {
-            var pageText = page.Text;
+            var pageText = ContentOrderTextExtractor.GetText(page);
             if (!string.IsNullOrWhiteSpace(pageText))
             {
                 allText.AppendLine(pageText);
