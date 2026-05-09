@@ -438,6 +438,19 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // Файл нулевого размера ловим до парсера — иначе любой ридер
+        // бросит малопонятное «invalid format» исключение.
+        var fileLength = new FileInfo(filePath).Length;
+        if (fileLength == 0)
+        {
+            MessageBox.Show(
+                $"Файл «{fileName}» пустой (0 байт). Открывать нечего.",
+                "ЯсноТекст",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
         var reader = _readers.FirstOrDefault(r => r.CanRead(filePath));
         if (reader == null)
         {
@@ -459,6 +472,27 @@ public class MainViewModel : ViewModelBase
         try
         {
             var result = await Task.Run(() => reader.Read(filePath));
+
+            // Документ есть, но в нём ноль страниц — корнер-кейс
+            // (валидный заголовок без содержимого). Сообщение точнее,
+            // чем «не найден текстовый слой».
+            if (result.PageCount == 0)
+            {
+                MessageBox.Show(
+                    $"В документе «{fileName}» нет ни одной страницы. " +
+                    "Возможно, файл повреждён или сохранён без содержимого.",
+                    "ЯсноТекст",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                DocumentText = "Документ не содержит страниц.";
+                DocumentInfo = $"{fileName} · нет страниц";
+                HasDocument = true;
+
+                _recentFilesService.Add(filePath);
+                ReloadRecentFiles();
+                return;
+            }
 
             if (result.IsEmpty)
             {
