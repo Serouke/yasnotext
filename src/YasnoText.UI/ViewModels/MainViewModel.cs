@@ -118,6 +118,17 @@ public class MainViewModel : ViewModelBase
 
         SaveProfileCommand = new RelayCommand(_ => SaveCurrentAsProfile());
 
+        DeleteProfileCommand = new RelayCommand(
+            execute: p =>
+            {
+                if (p is ProfileItemViewModel vm && !vm.Profile.IsBuiltIn)
+                {
+                    DeleteProfile(vm);
+                }
+            },
+            canExecute: p =>
+                p is ProfileItemViewModel vm && !vm.Profile.IsBuiltIn);
+
         ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
 
         ShowAboutCommand = new RelayCommand(_ => MessageBox.Show(
@@ -239,6 +250,7 @@ public class MainViewModel : ViewModelBase
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
+    public ICommand DeleteProfileCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
 
@@ -324,6 +336,34 @@ public class MainViewModel : ViewModelBase
         _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
 
         ActivateProfile(newVm);
+    }
+
+    /// <summary>
+    /// Удаляет пользовательский профиль (после подтверждения). Если он
+    /// был активным — активируется первый профиль из списка
+    /// (всегда «Стандартный», встроенные не удаляются).
+    /// </summary>
+    private void DeleteProfile(ProfileItemViewModel vm)
+    {
+        var confirm = MessageBox.Show(
+            $"Удалить профиль «{vm.Profile.Name}»? Действие нельзя отменить.",
+            "ЯсноТекст",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var wasActive = ActiveProfile == vm;
+        Profiles.Remove(vm);
+        _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
+
+        if (wasActive)
+        {
+            ActivateProfile(Profiles.First());
+        }
     }
 
     private string GenerateUniqueProfileName(string baseName)
