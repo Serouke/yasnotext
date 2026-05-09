@@ -12,7 +12,9 @@
         MinWidth="900"
         WindowStartupLocation="CenterScreen"
         AllowDrop="True"
+        DragEnter="OnWindowDragEnter"
         DragOver="OnWindowDragOver"
+        DragLeave="OnWindowDragLeave"
         Drop="OnWindowDrop"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource TextBrush}"
@@ -22,13 +24,15 @@
 
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-        <!-- Кнопка панели инструментов: плоская, без рамки, с hover-подсветкой. -->
+        <!-- Кнопка панели инструментов: тонкая рамка, hover заливает AccentBrush
+             и сливает рамку с фоном. -->
         <Style x:Key="ToolbarButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,7" />
-            <Setter Property="Margin" Value="0" />
+            <Setter Property="Margin" Value="0,0,4,0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Template">
@@ -36,6 +40,8 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Bd"
                                 Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
@@ -47,6 +53,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                 <Setter Property="Foreground" Value="{DynamicResource WindowBackgroundBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -118,6 +125,11 @@
             <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Style.Triggers>
+                <!-- Hover на неактивной карточке — рамка подсвечивается
+                     акцентным цветом, чтобы дать визуальную обратную связь. -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                </Trigger>
                 <DataTrigger Binding="{Binding IsActive}" Value="True">
                     <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
                     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
@@ -179,6 +191,7 @@
         </DataTemplate>
     </Window.Resources>
 
+    <Grid>
     <DockPanel>
 
         <!-- Главное меню -->
@@ -430,4 +443,28 @@
         </Grid>
 
     </DockPanel>
+
+        <!-- Overlay при drag-and-drop файла. IsHitTestVisible=False, чтобы
+             события Drop/DragLeave доходили до Window — иначе drop попадал бы
+             в overlay и не срабатывал. Полупрозрачный чёрный фон одинаково
+             хорошо смотрится на всех трёх темах. -->
+        <Border x:Name="DropOverlay"
+                Visibility="Collapsed"
+                IsHitTestVisible="False"
+                Background="#B0000000">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <TextBlock Text="Отпустите, чтобы открыть"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="PDF · DOCX · изображение"
+                           FontSize="13"
+                           Foreground="#CCFFFFFF"
+                           Margin="0,10,0,0"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </Grid>
 </Window>
