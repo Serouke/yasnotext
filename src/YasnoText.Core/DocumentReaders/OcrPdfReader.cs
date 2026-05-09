@@ -1,5 +1,6 @@
 using System.Text;
 using YasnoText.Core.Ocr;
+using YasnoText.Core.TextProcessing;
 
 namespace YasnoText.Core.DocumentReaders;
 
@@ -58,6 +59,7 @@ public class OcrPdfReader : IDocumentReader
             }
         }
 
-        return new DocumentResult(sb.ToString().TrimEnd(), pageCount);
+        var cleaned = TextPostProcessor.FixSoftHyphenLineBreaks(sb.ToString());
+        return new DocumentResult(cleaned.TrimEnd(), pageCount);
     }
 }

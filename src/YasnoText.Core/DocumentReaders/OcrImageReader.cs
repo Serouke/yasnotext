@@ -1,4 +1,5 @@
 using YasnoText.Core.Ocr;
+using YasnoText.Core.TextProcessing;
 
 namespace YasnoText.Core.DocumentReaders;
 
@@ -44,6 +45,7 @@ public class OcrImageReader : IDocumentReader
         }
 
         var text = _ocr.Recognize(filePath);
-        return new DocumentResult(text.TrimEnd(), 1);
+        var cleaned = TextPostProcessor.FixSoftHyphenLineBreaks(text);
+        return new DocumentResult(cleaned.TrimEnd(), 1);
     }
 }
