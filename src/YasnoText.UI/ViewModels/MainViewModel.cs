@@ -84,7 +84,8 @@ public class MainViewModel : ViewModelBase
         Profiles = new ObservableCollection<ProfileItemViewModel>(
             _profileManager.LoadAll().Select(p => new ProfileItemViewModel(
                 p,
-                hotkeys.TryGetValue(p.Id, out var hk) ? hk : string.Empty)));
+                hotkeys.TryGetValue(p.Id, out var hk) ? hk : string.Empty,
+                onDelete: DeleteProfile)));
 
         SelectProfileCommand = new RelayCommand(p =>
         {
@@ -117,17 +118,6 @@ public class MainViewModel : ViewModelBase
             canExecute: _ => CurrentFontSize > MinFontSize);
 
         SaveProfileCommand = new RelayCommand(_ => SaveCurrentAsProfile());
-
-        DeleteProfileCommand = new RelayCommand(
-            execute: p =>
-            {
-                if (p is ProfileItemViewModel vm && !vm.Profile.IsBuiltIn)
-                {
-                    DeleteProfile(vm);
-                }
-            },
-            canExecute: p =>
-                p is ProfileItemViewModel vm && !vm.Profile.IsBuiltIn);
 
         ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
 
@@ -250,7 +240,6 @@ public class MainViewModel : ViewModelBase
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
-    public ICommand DeleteProfileCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
 
@@ -330,7 +319,10 @@ public class MainViewModel : ViewModelBase
             BaseThemeId = basis.BaseThemeId
         };
 
-        var newVm = new ProfileItemViewModel(newProfile, hotkey: string.Empty);
+        var newVm = new ProfileItemViewModel(
+            newProfile,
+            hotkey: string.Empty,
+            onDelete: DeleteProfile);
         Profiles.Add(newVm);
 
         _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
