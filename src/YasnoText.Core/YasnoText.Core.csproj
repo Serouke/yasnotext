@@ -14,6 +14,7 @@
          GHSA-qj66-m88j-hmgj). OpenXml 3.1.0 продолжает на ней работать. -->
     <PackageReference Include="System.IO.Packaging" Version="10.0.0" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
+    <PackageReference Include="PDFtoImage" Version="4.1.1" />
   </ItemGroup>
 
 </Project>

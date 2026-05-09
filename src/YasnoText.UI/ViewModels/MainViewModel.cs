@@ -31,10 +31,16 @@ public class MainViewModel : ViewModelBase
         // чтобы отсутствующие языковые модели не валили старт приложения.
         var tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
         var ocr = new TesseractOcrService(tessdataPath, "eng+rus");
+        var pdfRenderer = new PdfiumPdfRenderer();
+
+        // Композитный PDF-ридер: текстовый слой → fallback на OCR для сканов.
+        var pdfReader = new PdfTextOrOcrReader(
+            textReader: new PdfTextReader(),
+            ocrReader: new OcrPdfReader(pdfRenderer, ocr));
 
         _readers = new IDocumentReader[]
         {
-            new PdfTextReader(),
+            pdfReader,
             new DocxTextReader(),
             new OcrImageReader(ocr)
         };
