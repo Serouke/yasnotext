@@ -161,6 +161,17 @@
                                   Command="{Binding DataContext.SelectProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                   CommandParameter="{Binding}" />
                 </Border.InputBindings>
+                <Border.ContextMenu>
+                    <!-- Контекстное меню по правому клику. Пункт «Удалить»
+                         делается серым на встроенных профилях через
+                         CanExecute команды (ReadingProfile.IsBuiltIn). -->
+                    <ContextMenu>
+                        <MenuItem Header="Удалить профиль"
+                                  Command="{Binding DataContext.DeleteProfileCommand,
+                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}" />
+                    </ContextMenu>
+                </Border.ContextMenu>
                 <StackPanel>
                     <TextBlock Text="{Binding Name}" Style="{StaticResource ProfileCardTitle}" />
                     <TextBlock Text="{Binding HotkeyLabel}" Style="{StaticResource ProfileCardHotkey}" />
@@ -300,31 +311,37 @@
             <Border Grid.Column="0"
                     Background="{DynamicResource SidebarBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="0,0,1,0"
-                    Padding="16,18">
-                <StackPanel>
-                    <TextBlock Text="ПРОФИЛИ" Style="{StaticResource SectionLabel}" />
+                    BorderThickness="0,0,1,0">
+                <!-- ScrollViewer вокруг всего sidebar — иначе при большом
+                     количестве пользовательских профилей список не помещается
+                     по высоте и без прокрутки до настроек не добраться. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Padding="16,18">
+                    <StackPanel>
+                        <TextBlock Text="ПРОФИЛИ" Style="{StaticResource SectionLabel}" />
 
-                    <ItemsControl ItemsSource="{Binding Profiles}"
-                                  ItemTemplate="{StaticResource ProfileCardTemplate}" />
+                        <ItemsControl ItemsSource="{Binding Profiles}"
+                                      ItemTemplate="{StaticResource ProfileCardTemplate}" />
 
-                    <Rectangle Height="1" Margin="0,18,0,18"
-                               Fill="{DynamicResource BorderBrush}" />
+                        <Rectangle Height="1" Margin="0,18,0,18"
+                                   Fill="{DynamicResource BorderBrush}" />
 
-                    <TextBlock Text="НАСТРОЙКИ" Style="{StaticResource SectionLabel}" />
+                        <TextBlock Text="НАСТРОЙКИ" Style="{StaticResource SectionLabel}" />
 
-                    <TextBlock Text="Шрифт" Style="{StaticResource SettingLabel}" />
-                    <ComboBox ItemsSource="{Binding AvailableFonts}"
-                              SelectedItem="{Binding CurrentFontFamily}"
-                              Margin="0,0,0,14"
-                              Foreground="Black" />
+                        <TextBlock Text="Шрифт" Style="{StaticResource SettingLabel}" />
+                        <ComboBox ItemsSource="{Binding AvailableFonts}"
+                                  SelectedItem="{Binding CurrentFontFamily}"
+                                  Margin="0,0,0,14"
+                                  Foreground="Black" />
 
-                    <TextBlock Text="Межстрочный интервал" Style="{StaticResource SettingLabel}" />
-                    <Slider Minimum="1" Maximum="3"
-                            Value="{Binding CurrentLineHeight, Mode=TwoWay}"
-                            TickFrequency="0.5"
-                            IsSnapToTickEnabled="False" />
-                </StackPanel>
+                        <TextBlock Text="Межстрочный интервал" Style="{StaticResource SettingLabel}" />
+                        <Slider Minimum="1" Maximum="3"
+                                Value="{Binding CurrentLineHeight, Mode=TwoWay}"
+                                TickFrequency="0.5"
+                                IsSnapToTickEnabled="False" />
+                    </StackPanel>
+                </ScrollViewer>
             </Border>
 
             <!-- Область чтения. Два состояния: onboarding (нет документа) и
