@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Input;
 using YasnoText.UI.Themes;
 using YasnoText.UI.ViewModels;
@@ -7,6 +9,8 @@ namespace YasnoText.UI;
 
 public partial class MainWindow : Window
 {
+    private static readonly string[] ParagraphSeparators = { "\r\n\r\n", "\n\n" };
+
     private readonly MainViewModel _viewModel;
 
     public MainWindow()
@@ -15,6 +19,12 @@ public partial class MainWindow : Window
 
         _viewModel = new MainViewModel(new WpfThemeApplier());
         DataContext = _viewModel;
+
+        // FlowDocument строится в code-behind, потому что у FlowDocument
+        // нет ItemsSource или биндинга к строке — нужен явный пересбор
+        // блоков при изменении текста или межстрочного интервала.
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        UpdateReadingDocument();
 
         // Drag-and-drop файла из проводника. Сама подписка через AllowDrop
         // и атрибуты DragOver/Drop в XAML — здесь только обработчики.
@@ -83,5 +93,46 @@ public partial class MainWindow : Window
         // Если бросили несколько файлов — открываем первый. UI на нескольких
         // вкладках/документах пока не рассчитан.
         await _viewModel.OpenFromPathAsync(files[0]);
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.DocumentText) ||
+            e.PropertyName == nameof(MainViewModel.EffectiveLineHeight))
+        {
+            UpdateReadingDocument();
+        }
+    }
+
+    /// <summary>
+    /// Пересобирает FlowDocument из текущего DocumentText, разбивая текст на
+    /// параграфы по двойному переносу строки. Виртуализация WPF работает
+    /// на уровне Paragraph-блоков, поэтому один большой Run на 250-страничный
+    /// документ не сработал бы — скролл всё равно лагал бы.
+    /// </summary>
+    private void UpdateReadingDocument()
+    {
+        var text = _viewModel.DocumentText ?? string.Empty;
+
+        var doc = new FlowDocument
+        {
+            PagePadding = new Thickness(40, 30, 40, 30),
+            LineHeight = _viewModel.EffectiveLineHeight,
+            // FontFamily/FontSize/Foreground наследуются от FlowDocumentScrollViewer
+            // через TextElement-наследование, поэтому здесь их явно не задаём.
+        };
+
+        var paragraphs = text.Split(ParagraphSeparators, StringSplitOptions.None);
+        foreach (var paragraphText in paragraphs)
+        {
+            if (string.IsNullOrEmpty(paragraphText))
+            {
+                continue;
+            }
+
+            doc.Blocks.Add(new Paragraph(new Run(paragraphText)));
+        }
+
+        ReadingViewer.Document = doc;
     }
 }
