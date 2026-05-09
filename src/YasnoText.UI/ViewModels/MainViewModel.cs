@@ -41,6 +41,7 @@ public class MainViewModel : ViewModelBase
 
     private readonly IThemeApplier _themeApplier;
     private readonly ProfileManager _profileManager;
+    private readonly RecentFilesService _recentFilesService;
     private readonly IDocumentReader[] _readers;
 
     private ProfileItemViewModel? _activeProfile;
@@ -57,6 +58,7 @@ public class MainViewModel : ViewModelBase
     {
         _themeApplier = themeApplier;
         _profileManager = new ProfileManager();
+        _recentFilesService = new RecentFilesService();
 
         var tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
         var ocr = new TesseractOcrService(tessdataPath, "eng+rus");
@@ -93,7 +95,17 @@ public class MainViewModel : ViewModelBase
         });
 
         OpenDocumentCommand = new RelayCommand(
-            execute: async _ => await OpenDocumentAsync(),
+            execute: async _ => await OpenViaDialogAsync(),
+            canExecute: _ => !IsLoading);
+
+        OpenRecentCommand = new RelayCommand(
+            execute: async path =>
+            {
+                if (path is string filePath)
+                {
+                    await OpenFromPathAsync(filePath);
+                }
+            },
             canExecute: _ => !IsLoading);
 
         IncreaseFontCommand = new RelayCommand(
@@ -116,6 +128,8 @@ public class MainViewModel : ViewModelBase
             "О программе",
             MessageBoxButton.OK,
             MessageBoxImage.Information));
+
+        RecentFiles = new ObservableCollection<string>(_recentFilesService.Load());
 
         // По умолчанию активен Стандартный профиль.
         ActivateProfile(Profiles.First());
@@ -221,11 +235,18 @@ public class MainViewModel : ViewModelBase
 
     public ICommand SelectProfileCommand { get; }
     public ICommand OpenDocumentCommand { get; }
+    public ICommand OpenRecentCommand { get; }
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
+
+    /// <summary>Список путей к недавним файлам в порядке от свежего к старому.</summary>
+    public ObservableCollection<string> RecentFiles { get; private set; } = new();
+
+    /// <summary>true, если в списке недавних есть хоть один файл — для биндинга IsEnabled подменю.</summary>
+    public bool HasRecentFiles => RecentFiles.Count > 0;
 
     public string StatusText
     {
@@ -325,12 +346,8 @@ public class MainViewModel : ViewModelBase
         return $"{baseName} {Guid.NewGuid():N}".Substring(0, 30);
     }
 
-    /// <summary>
-    /// Открывает документ асинхронно. Чтение файла выполняется в фоновом
-    /// потоке, чтобы UI оставался отзывчивым даже при работе с большими
-    /// документами.
-    /// </summary>
-    private async Task OpenDocumentAsync()
+    /// <summary>Показывает диалог выбора файла и открывает выбранный документ.</summary>
+    private async Task OpenViaDialogAsync()
     {
         var dialog = new OpenFileDialog
         {
@@ -351,15 +368,50 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var filePath = dialog.FileName;
+        await OpenFromPathAsync(dialog.FileName);
+    }
+
+    /// <summary>
+    /// Открывает документ по готовому пути. Используется из диалога,
+    /// списка недавних и drag-and-drop. Чтение файла выполняется в фоновом
+    /// потоке, чтобы UI оставался отзывчивым даже на больших документах.
+    /// </summary>
+    public async Task OpenFromPathAsync(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        if (IsLoading)
+        {
+            // Игнорируем повторный запрос пока идёт загрузка предыдущего —
+            // например, если drop сработал во время Task.Run.
+            return;
+        }
+
         var fileName = Path.GetFileName(filePath);
+
+        if (!File.Exists(filePath))
+        {
+            // Файл из списка недавних мог быть удалён или перемещён.
+            _recentFilesService.Remove(filePath);
+            ReloadRecentFiles();
+
+            MessageBox.Show(
+                $"Файл «{fileName}» не найден. Возможно, он был удалён или перемещён.",
+                "ЯсноТекст",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
 
         var reader = _readers.FirstOrDefault(r => r.CanRead(filePath));
         if (reader == null)
         {
             MessageBox.Show(
                 "Этот формат файла пока не поддерживается. " +
-                "Поддерживаются PDF и DOCX.",
+                "Поддерживаются PDF, DOCX и изображения.",
                 "ЯсноТекст",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -394,12 +446,17 @@ public class MainViewModel : ViewModelBase
                     ? $"{fileName} · скан без OCR"
                     : $"{fileName} · пусто";
                 HasDocument = true;
-                return;
+            }
+            else
+            {
+                DocumentText = result.Text;
+                DocumentInfo = $"{fileName} · {result.PageCount} стр.";
+                HasDocument = true;
             }
 
-            DocumentText = result.Text;
-            DocumentInfo = $"{fileName} · {result.PageCount} стр.";
-            HasDocument = true;
+            // Запоминаем файл в списке недавних только при успешном открытии.
+            _recentFilesService.Add(filePath);
+            ReloadRecentFiles();
         }
         catch (Exception ex)
         {
@@ -415,5 +472,15 @@ public class MainViewModel : ViewModelBase
         {
             IsLoading = false;
         }
+    }
+
+    private void ReloadRecentFiles()
+    {
+        RecentFiles.Clear();
+        foreach (var path in _recentFilesService.Load())
+        {
+            RecentFiles.Add(path);
+        }
+        OnPropertyChanged(nameof(HasRecentFiles));
     }
 }

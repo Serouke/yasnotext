@@ -16,6 +16,9 @@ public partial class MainWindow : Window
         _viewModel = new MainViewModel(new WpfThemeApplier());
         DataContext = _viewModel;
 
+        // Drag-and-drop файла из проводника. Сама подписка через AllowDrop
+        // и атрибуты DragOver/Drop в XAML — здесь только обработчики.
+
         // Горячие клавиши переключения профиля
         InputBindings.Add(new KeyBinding(
             new RelayCommand(() => _viewModel.ActivateById("standard")),
@@ -53,5 +56,32 @@ public partial class MainWindow : Window
         InputBindings.Add(new KeyBinding(
             _viewModel.DecreaseFontCommand,
             Key.Subtract, ModifierKeys.Control));
+    }
+
+    private void OnWindowDragOver(object sender, DragEventArgs e)
+    {
+        // Курсор меняется на «копировать» только если перетаскивается файл.
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void OnWindowDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            return;
+        }
+
+        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        if (files.Length == 0)
+        {
+            return;
+        }
+
+        // Если бросили несколько файлов — открываем первый. UI на нескольких
+        // вкладках/документах пока не рассчитан.
+        await _viewModel.OpenFromPathAsync(files[0]);
     }
 }
