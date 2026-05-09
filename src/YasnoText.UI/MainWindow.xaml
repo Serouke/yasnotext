@@ -11,6 +11,9 @@
         MinHeight="500"
         MinWidth="900"
         WindowStartupLocation="CenterScreen"
+        AllowDrop="True"
+        DragOver="OnWindowDragOver"
+        Drop="OnWindowDrop"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource TextBrush}"
         FontFamily="{DynamicResource UIFontFamily}">
