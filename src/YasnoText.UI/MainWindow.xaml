@@ -367,20 +367,19 @@
                     </TextBlock>
                 </StackPanel>
 
-                <!-- Текст документа (TextBlock — нужен LineHeight, которого
-                     нет у TextBox; цена — потеря выделения текста). -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled"
-                              Visibility="{Binding HasDocument, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="{Binding DocumentText, Mode=OneWay}"
-                               Background="{DynamicResource ReadingBackgroundBrush}"
-                               Foreground="{DynamicResource TextBrush}"
-                               FontFamily="{Binding CurrentFontFamily}"
-                               FontSize="{Binding CurrentFontSize}"
-                               LineHeight="{Binding EffectiveLineHeight}"
-                               Padding="40,30"
-                               TextWrapping="Wrap" />
-                </ScrollViewer>
+                <!-- Текст документа. FlowDocumentScrollViewer вместо TextBlock —
+                     у первого встроенная виртуализация на уровне Paragraph,
+                     один TextBlock на 250-страничный PDF просто не скроллится.
+                     Бонусом возвращается выделение/копирование текста и
+                     встроенный поиск Ctrl+F. FlowDocument строится в
+                     code-behind: см. UpdateReadingDocument в MainWindow.xaml.cs. -->
+                <FlowDocumentScrollViewer x:Name="ReadingViewer"
+                                          IsToolBarVisible="False"
+                                          Background="{DynamicResource ReadingBackgroundBrush}"
+                                          Foreground="{DynamicResource TextBrush}"
+                                          FontFamily="{Binding CurrentFontFamily}"
+                                          FontSize="{Binding CurrentFontSize}"
+                                          Visibility="{Binding HasDocument, Converter={StaticResource BoolToVis}}" />
             </Grid>
         </Grid>
 
