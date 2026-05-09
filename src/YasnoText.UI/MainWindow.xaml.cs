@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Threading;
+using System.Windows.Media;
 using YasnoText.UI.Themes;
 using YasnoText.UI.ViewModels;
 
@@ -17,14 +17,19 @@ public partial class MainWindow : Window
     /// <summary>Радиус «мёртвой зоны» вокруг якоря, в пикселях. Внутри — скролл стоит.</summary>
     private const double AutoScrollDeadZone = 12;
 
-    /// <summary>Множитель скорости: пиксели прокрутки за тик на пиксель смещения курсора.</summary>
-    private const double AutoScrollSpeedFactor = 0.06;
+    /// <summary>Множитель квадратичной кривой скорости: target_speed = sign × (|delta|−dz)² × factor (px/s).</summary>
+    private const double AutoScrollSpeedFactor = 0.05;
+
+    /// <summary>Скорость сглаживания: насколько быстро текущая скорость подтягивается к целевой (1/сек).
+    /// Чем больше — тем отзывчивее, но резче. 12 даёт ~0.4 сек до ~95% целевой скорости.</summary>
+    private const double AutoScrollSmoothingRate = 12.0;
 
     private readonly MainViewModel _viewModel;
 
     private bool _autoScrollActive;
     private Point _autoScrollAnchor;
-    private DispatcherTimer? _autoScrollTimer;
+    private double _autoScrollCurrentSpeed;
+    private TimeSpan _autoScrollLastFrameTime;
     private ScrollViewer? _innerScrollViewer;
 
     public MainWindow()
@@ -232,19 +237,19 @@ public partial class MainWindow : Window
 
         _autoScrollAnchor = anchor;
         _autoScrollActive = true;
+        _autoScrollCurrentSpeed = 0;
+        _autoScrollLastFrameTime = TimeSpan.Zero;
 
         Canvas.SetLeft(AutoScrollAnchor, anchor.X - AutoScrollAnchor.Width / 2);
         Canvas.SetTop(AutoScrollAnchor, anchor.Y - AutoScrollAnchor.Height / 2);
         AutoScrollOverlay.Visibility = Visibility.Visible;
         Cursor = Cursors.ScrollAll;
 
-        _autoScrollTimer ??= new DispatcherTimer(DispatcherPriority.Render)
-        {
-            Interval = TimeSpan.FromMilliseconds(16),
-        };
-        _autoScrollTimer.Tick -= OnAutoScrollTick;
-        _autoScrollTimer.Tick += OnAutoScrollTick;
-        _autoScrollTimer.Start();
+        // CompositionTarget.Rendering выстреливает синхронно с каждым кадром
+        // WPF — даёт более плавную картинку, чем DispatcherTimer, который
+        // может стрелять в произвольный момент между кадрами.
+        CompositionTarget.Rendering -= OnAutoScrollRendering;
+        CompositionTarget.Rendering += OnAutoScrollRendering;
     }
 
     private void StopAutoScroll()
@@ -255,14 +260,33 @@ public partial class MainWindow : Window
         }
 
         _autoScrollActive = false;
-        _autoScrollTimer?.Stop();
+        _autoScrollCurrentSpeed = 0;
+        CompositionTarget.Rendering -= OnAutoScrollRendering;
         AutoScrollOverlay.Visibility = Visibility.Collapsed;
         ClearValue(CursorProperty);
     }
 
-    private void OnAutoScrollTick(object? sender, EventArgs e)
+    private void OnAutoScrollRendering(object? sender, EventArgs e)
     {
         if (!_autoScrollActive || _innerScrollViewer == null)
+        {
+            return;
+        }
+
+        var now = ((RenderingEventArgs)e).RenderingTime;
+        if (_autoScrollLastFrameTime == TimeSpan.Zero)
+        {
+            // Первый кадр — нечего интегрировать, только запоминаем время.
+            _autoScrollLastFrameTime = now;
+            return;
+        }
+
+        var dt = (now - _autoScrollLastFrameTime).TotalSeconds;
+        _autoScrollLastFrameTime = now;
+
+        // Аномально большой dt (например, окно было свёрнуто) — пропускаем,
+        // иначе рывок на сотни пикселей за один frame.
+        if (dt <= 0 || dt > 0.1)
         {
             return;
         }
@@ -271,20 +295,34 @@ public partial class MainWindow : Window
         var delta = current.Y - _autoScrollAnchor.Y;
         var absDelta = Math.Abs(delta);
 
+        double targetSpeed;
         if (absDelta < AutoScrollDeadZone)
         {
-            // В мёртвой зоне курсор «нейтральный» — стоим на месте.
+            targetSpeed = 0;
             Cursor = Cursors.ScrollAll;
-            return;
+        }
+        else
+        {
+            var direction = Math.Sign(delta);
+            var beyond = absDelta - AutoScrollDeadZone;
+            // Quadratic curve: на маленьких смещениях скорость растёт мягко,
+            // на больших — заметно быстрее. Гораздо приятнее линейного.
+            targetSpeed = direction * beyond * beyond * AutoScrollSpeedFactor;
+            Cursor = direction > 0 ? Cursors.ScrollS : Cursors.ScrollN;
         }
 
-        var direction = Math.Sign(delta);
-        var speed = direction * (absDelta - AutoScrollDeadZone) * AutoScrollSpeedFactor;
+        // Экспоненциальный lerp текущей скорости к целевой. Frame-rate
+        // independent: для любого dt 1 - exp(-rate × dt) даёт корректную
+        // долю шага. Это убирает резкие старты/остановки.
+        var lerp = 1 - Math.Exp(-AutoScrollSmoothingRate * dt);
+        _autoScrollCurrentSpeed += (targetSpeed - _autoScrollCurrentSpeed) * lerp;
 
-        _innerScrollViewer.ScrollToVerticalOffset(
-            _innerScrollViewer.VerticalOffset + speed);
-
-        Cursor = direction > 0 ? Cursors.ScrollS : Cursors.ScrollN;
+        var pxThisFrame = _autoScrollCurrentSpeed * dt;
+        if (Math.Abs(pxThisFrame) > 0.001)
+        {
+            _innerScrollViewer.ScrollToVerticalOffset(
+                _innerScrollViewer.VerticalOffset + pxThisFrame);
+        }
     }
 
     private void EnsureInnerScrollViewer()
