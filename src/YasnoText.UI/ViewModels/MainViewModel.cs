@@ -47,6 +47,7 @@ public class MainViewModel : ViewModelBase
     private string _documentText = string.Empty;
     private string _documentInfo = "Документ не открыт";
     private bool _isLoading;
+    private bool _hasDocument;
 
     private string _currentFontFamily = "Segoe UI";
     private double _currentFontSize = 14;
@@ -105,19 +106,19 @@ public class MainViewModel : ViewModelBase
 
         SaveProfileCommand = new RelayCommand(_ => SaveCurrentAsProfile());
 
+        ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
+
+        ShowAboutCommand = new RelayCommand(_ => MessageBox.Show(
+            "ЯсноТекст" + Environment.NewLine + Environment.NewLine +
+            "Превращает «недоступные» PDF, DOCX и сканы в удобную среду для " +
+            "чтения людьми с нарушениями зрения и дислексией." + Environment.NewLine + Environment.NewLine +
+            "Учебный проект, MIT License.",
+            "О программе",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information));
+
         // По умолчанию активен Стандартный профиль.
         ActivateProfile(Profiles.First());
-
-        // Приветственный текст до открытия документа.
-        DocumentText =
-            "Добро пожаловать в ЯсноТекст." + Environment.NewLine + Environment.NewLine +
-            "Это приложение помогает превратить «недоступные» цифровые документы " +
-            "в удобную среду для людей с нарушениями зрения и дислексией." + Environment.NewLine + Environment.NewLine +
-            "Чтобы начать, нажмите кнопку «Открыть» на панели инструментов или " +
-            "используйте сочетание клавиш Ctrl+O." + Environment.NewLine + Environment.NewLine +
-            "Выберите подходящий профиль слева — интерфейс автоматически подстроится " +
-            "под ваши потребности. Также можно использовать горячие клавиши: " +
-            "Ctrl+1, Ctrl+2, Ctrl+3.";
     }
 
     public ObservableCollection<ProfileItemViewModel> Profiles { get; }
@@ -159,6 +160,23 @@ public class MainViewModel : ViewModelBase
             }
         }
     }
+
+    /// <summary>true, если открыт реальный документ. До первой загрузки UI
+    /// показывает onboarding-экран вместо области чтения.</summary>
+    public bool HasDocument
+    {
+        get => _hasDocument;
+        private set
+        {
+            if (SetProperty(ref _hasDocument, value))
+            {
+                OnPropertyChanged(nameof(HasNoDocument));
+            }
+        }
+    }
+
+    /// <summary>Удобный инверс для Visibility-биндинга без конвертера.</summary>
+    public bool HasNoDocument => !_hasDocument;
 
     /// <summary>Шрифт, применяемый к области чтения в данный момент.</summary>
     public string CurrentFontFamily
@@ -206,6 +224,8 @@ public class MainViewModel : ViewModelBase
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
+    public ICommand ExitCommand { get; }
+    public ICommand ShowAboutCommand { get; }
 
     public string StatusText
     {
@@ -373,11 +393,13 @@ public class MainViewModel : ViewModelBase
                 DocumentInfo = isPdf
                     ? $"{fileName} · скан без OCR"
                     : $"{fileName} · пусто";
+                HasDocument = true;
                 return;
             }
 
             DocumentText = result.Text;
             DocumentInfo = $"{fileName} · {result.PageCount} стр.";
+            HasDocument = true;
         }
         catch (Exception ex)
         {
