@@ -6,8 +6,10 @@
         xmlns:vm="clr-namespace:YasnoText.UI.ViewModels"
         mc:Ignorable="d"
         Title="ЯсноТекст"
-        Height="700"
-        Width="1100"
+        Height="720"
+        Width="1180"
+        MinHeight="500"
+        MinWidth="900"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource TextBrush}"
@@ -15,21 +17,23 @@
 
     <Window.Resources>
 
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- Кнопка панели инструментов: плоская, без рамки, с hover-подсветкой. -->
         <Style x:Key="ToolbarButton" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="Margin" Value="2" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,7" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="3">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               Margin="{TemplateBinding Padding}"
@@ -39,8 +43,44 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}" />
                                 <Setter Property="Foreground" Value="{DynamicResource WindowBackgroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Большая кнопка onboarding-экрана. -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource WindowBackgroundBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="22,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              TextElement.FontFamily="{TemplateBinding FontFamily}"
+                                              TextElement.FontSize="{TemplateBinding FontSize}"
+                                              TextElement.FontWeight="{TemplateBinding FontWeight}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -59,11 +99,18 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
 
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+
         <Style x:Key="ProfileCardBorder" TargetType="Border">
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="10,8" />
-            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
@@ -89,13 +136,19 @@
 
         <Style x:Key="ProfileCardHotkey" TargetType="TextBlock">
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Margin" Value="0,2,0,0" />
+            <Setter Property="Margin" Value="0,3,0,0" />
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsActive}" Value="True">
                     <Setter Property="Foreground" Value="{DynamicResource WindowBackgroundBrush}" />
                 </DataTrigger>
             </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SettingLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
         </Style>
 
         <DataTemplate x:Key="ProfileCardTemplate" DataType="{x:Type vm:ProfileItemViewModel}">
@@ -125,7 +178,7 @@
                           InputGestureText="Ctrl+S"
                           Command="{Binding SaveProfileCommand}" />
                 <Separator />
-                <MenuItem Header="Выход" />
+                <MenuItem Header="Выход" Command="{Binding ExitCommand}" />
             </MenuItem>
             <MenuItem Header="Профиль">
                 <MenuItem Header="Стандартный"
@@ -149,49 +202,44 @@
                           InputGestureText="Ctrl+-"
                           Command="{Binding DecreaseFontCommand}" />
             </MenuItem>
-            <MenuItem Header="Озвучка">
-                <MenuItem Header="Прочитать вслух" />
-                <MenuItem Header="Остановить" />
-            </MenuItem>
             <MenuItem Header="Справка">
-                <MenuItem Header="О программе" />
+                <MenuItem Header="О программе" Command="{Binding ShowAboutCommand}" />
             </MenuItem>
         </Menu>
 
-        <!-- Панель инструментов -->
+        <!-- Панель инструментов: только то, что реально работает. -->
         <Border DockPanel.Dock="Top"
                 Background="{DynamicResource WindowBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
-                Padding="10,8">
+                Padding="12,10">
             <StackPanel Orientation="Horizontal">
-                <Button Content="📂 Открыть"
+                <Button Content="Открыть"
                         Command="{Binding OpenDocumentCommand}"
                         Style="{StaticResource ToolbarButton}" />
-                <Button Content="💾 Сохранить"
+                <Button Content="Сохранить настройки"
                         Command="{Binding SaveProfileCommand}"
-                        ToolTip="Сохранить текущие настройки как новый профиль"
+                        ToolTip="Сохранить текущие настройки как новый профиль (Ctrl+S)"
                         Style="{StaticResource ToolbarButton}" />
-                <Rectangle Width="1" Margin="6,2"
+
+                <Rectangle Width="1" Margin="10,4"
                            Fill="{DynamicResource BorderBrush}" />
-                <Button Content="🔍 Распознать (OCR)" Style="{StaticResource ToolbarButton}" />
-                <Rectangle Width="1" Margin="6,2"
-                           Fill="{DynamicResource BorderBrush}" />
+
                 <Button Content="A−"
                         Command="{Binding DecreaseFontCommand}"
+                        FontWeight="SemiBold"
                         Style="{StaticResource ToolbarButton}" />
                 <TextBlock Text="{Binding CurrentFontSize, StringFormat={}{0:0}pt}"
                            VerticalAlignment="Center"
-                           Margin="8,0"
-                           MinWidth="40"
+                           Margin="6,0"
+                           MinWidth="36"
                            TextAlignment="Center"
-                           Foreground="{DynamicResource TextBrush}" />
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="12" />
                 <Button Content="A+"
                         Command="{Binding IncreaseFontCommand}"
+                        FontWeight="SemiBold"
                         Style="{StaticResource ToolbarButton}" />
-                <Rectangle Width="1" Margin="6,2"
-                           Fill="{DynamicResource BorderBrush}" />
-                <Button Content="▶ Озвучить" Style="{StaticResource ToolbarButton}" />
             </StackPanel>
         </Border>
 
@@ -200,7 +248,7 @@
                 Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0"
-                Padding="10,4">
+                Padding="12,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -208,16 +256,18 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            Text="{Binding DocumentInfo}"
+                           FontSize="12"
                            Foreground="{DynamicResource SecondaryTextBrush}" />
                 <TextBlock Grid.Column="1"
                            Text="{Binding StatusText}"
+                           FontSize="12"
                            Foreground="{DynamicResource SecondaryTextBrush}" />
             </Grid>
         </Border>
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="240" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -225,59 +275,96 @@
                     Background="{DynamicResource SidebarBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,1,0"
-                    Padding="12">
+                    Padding="16,18">
                 <StackPanel>
-                    <TextBlock Text="ПРОФИЛИ"
-                               FontSize="11"
-                               FontWeight="Medium"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Margin="0,0,0,8" />
+                    <TextBlock Text="ПРОФИЛИ" Style="{StaticResource SectionLabel}" />
 
                     <ItemsControl ItemsSource="{Binding Profiles}"
                                   ItemTemplate="{StaticResource ProfileCardTemplate}" />
 
-                    <TextBlock Text="НАСТРОЙКИ"
-                               FontSize="11"
-                               FontWeight="Medium"
-                               Foreground="{DynamicResource SecondaryTextBrush}"
-                               Margin="0,16,0,8" />
+                    <Rectangle Height="1" Margin="0,18,0,18"
+                               Fill="{DynamicResource BorderBrush}" />
 
-                    <TextBlock Text="Шрифт"
-                               FontSize="12"
-                               Margin="0,0,0,4"
-                               Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock Text="НАСТРОЙКИ" Style="{StaticResource SectionLabel}" />
+
+                    <TextBlock Text="Шрифт" Style="{StaticResource SettingLabel}" />
                     <ComboBox ItemsSource="{Binding AvailableFonts}"
                               SelectedItem="{Binding CurrentFontFamily}"
-                              Margin="0,0,0,10"
+                              Margin="0,0,0,14"
                               Foreground="Black" />
 
-                    <TextBlock Text="Межстрочный интервал"
-                               FontSize="12"
-                               Margin="0,0,0,4"
-                               Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock Text="Межстрочный интервал" Style="{StaticResource SettingLabel}" />
                     <Slider Minimum="1" Maximum="3"
                             Value="{Binding CurrentLineHeight, Mode=TwoWay}"
-                            TickFrequency="0.5" />
+                            TickFrequency="0.5"
+                            IsSnapToTickEnabled="False" />
                 </StackPanel>
             </Border>
 
-            <!-- Область чтения. TextBlock вместо TextBox — у TextBox нет
-                 LineHeight, который критичен для профиля «Дислексия». Выделение
-                 текста при этом теряется (в WPF TextBlock его не поддерживает),
-                 для read-only приложения это приемлемый компромисс MVP. -->
-            <ScrollViewer Grid.Column="1"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Background="{DynamicResource ReadingBackgroundBrush}">
-                <TextBlock Text="{Binding DocumentText, Mode=OneWay}"
-                           Background="{DynamicResource ReadingBackgroundBrush}"
-                           Foreground="{DynamicResource TextBrush}"
-                           FontFamily="{Binding CurrentFontFamily}"
-                           FontSize="{Binding CurrentFontSize}"
-                           LineHeight="{Binding EffectiveLineHeight}"
-                           Padding="32,24"
-                           TextWrapping="Wrap" />
-            </ScrollViewer>
+            <!-- Область чтения. Два состояния: onboarding (нет документа) и
+                 текстовый просмотр (документ открыт). Visibility — через
+                 BooleanToVisibilityConverter и инверсный bool в VM. -->
+            <Grid Grid.Column="1" Background="{DynamicResource ReadingBackgroundBrush}">
+
+                <!-- Onboarding-экран до первого открытия документа. -->
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            MaxWidth="460"
+                            Visibility="{Binding HasNoDocument, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="ЯсноТекст"
+                               FontSize="40"
+                               FontWeight="SemiBold"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource TextBrush}" />
+                    <TextBlock Text="Превращает «недоступные» PDF, DOCX и сканы в удобную среду для чтения."
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               LineHeight="22"
+                               Margin="0,12,0,28"
+                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                    <Button Content="Открыть документ"
+                            Command="{Binding OpenDocumentCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            HorizontalAlignment="Center" />
+                    <TextBlock Text="или нажмите Ctrl+O"
+                               FontSize="11"
+                               TextAlignment="Center"
+                               Margin="0,10,0,28"
+                               Foreground="{DynamicResource SecondaryTextBrush}" />
+                    <TextBlock TextAlignment="Center"
+                               LineHeight="22"
+                               FontSize="12"
+                               Foreground="{DynamicResource SecondaryTextBrush}">
+                        <Run Text="Профиль чтения: " />
+                        <Run Text="Ctrl+1" FontWeight="SemiBold" />
+                        <Run Text=" · " />
+                        <Run Text="Ctrl+2" FontWeight="SemiBold" />
+                        <Run Text=" · " />
+                        <Run Text="Ctrl+3" FontWeight="SemiBold" />
+                        <LineBreak />
+                        <Run Text="Размер шрифта: " />
+                        <Run Text="Ctrl++" FontWeight="SemiBold" />
+                        <Run Text=" / " />
+                        <Run Text="Ctrl+−" FontWeight="SemiBold" />
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Текст документа (TextBlock — нужен LineHeight, которого
+                     нет у TextBox; цена — потеря выделения текста). -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Visibility="{Binding HasDocument, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding DocumentText, Mode=OneWay}"
+                               Background="{DynamicResource ReadingBackgroundBrush}"
+                               Foreground="{DynamicResource TextBrush}"
+                               FontFamily="{Binding CurrentFontFamily}"
+                               FontSize="{Binding CurrentFontSize}"
+                               LineHeight="{Binding EffectiveLineHeight}"
+                               Padding="40,30"
+                               TextWrapping="Wrap" />
+                </ScrollViewer>
+            </Grid>
         </Grid>
 
     </DockPanel>
