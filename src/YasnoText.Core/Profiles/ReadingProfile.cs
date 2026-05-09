@@ -39,4 +39,12 @@ public class ReadingProfile
 
     /// <summary>true — встроенный профиль (нельзя удалить), false — пользовательский.</summary>
     public bool IsBuiltIn { get; set; } = false;
+
+    /// <summary>
+    /// Идентификатор темы оформления (цветовой схемы), которая применяется при
+    /// активации профиля: "standard", "low-vision" или "dyslexia". Для встроенных
+    /// совпадает с Id; пользовательский профиль наследует значение от того
+    /// встроенного, на основе которого он был создан.
+    /// </summary>
+    public string BaseThemeId { get; set; } = "standard";
 }

@@ -11,11 +11,36 @@ namespace YasnoText.UI.ViewModels;
 
 /// <summary>
 /// Главный ViewModel окна. Хранит коллекцию профилей,
-/// текущий активный профиль, открытый документ и команды.
+/// текущий активный профиль, открытый документ, текущие настройки
+/// чтения (которые можно править слайдерами) и команды.
 /// </summary>
 public class MainViewModel : ViewModelBase
 {
+    /// <summary>
+    /// Фиксированный список шрифтов, которые точно есть в Windows и
+    /// поддерживают кириллицу. Намеренно ограничен, чтобы пользователь
+    /// не выбирал случайно несовместимый шрифт из 200+ системных.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AvailableFontsList = new[]
+    {
+        "Segoe UI",
+        "Arial",
+        "Verdana",
+        "Tahoma",
+        "Calibri",
+        "Georgia",
+        "Times New Roman",
+        "Comic Sans MS",
+        "Consolas",
+        "OpenDyslexic"
+    };
+
+    private const double MinFontSize = 8;
+    private const double MaxFontSize = 72;
+    private const double FontStep = 1;
+
     private readonly IThemeApplier _themeApplier;
+    private readonly ProfileManager _profileManager;
     private readonly IDocumentReader[] _readers;
 
     private ProfileItemViewModel? _activeProfile;
@@ -23,17 +48,19 @@ public class MainViewModel : ViewModelBase
     private string _documentInfo = "Документ не открыт";
     private bool _isLoading;
 
+    private string _currentFontFamily = "Segoe UI";
+    private double _currentFontSize = 14;
+    private double _currentLetterSpacing;
+    private double _currentLineHeight = 1.5;
+
     public MainViewModel(IThemeApplier themeApplier)
     {
         _themeApplier = themeApplier;
+        _profileManager = new ProfileManager();
 
-        // OCR-сервис ленив: tessdata проверяется только при первом распознавании,
-        // чтобы отсутствующие языковые модели не валили старт приложения.
         var tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
         var ocr = new TesseractOcrService(tessdataPath, "eng+rus");
         var pdfRenderer = new PdfiumPdfRenderer();
-
-        // Композитный PDF-ридер: текстовый слой → fallback на OCR для сканов.
         var pdfReader = new PdfTextOrOcrReader(
             textReader: new PdfTextReader(),
             ocrReader: new OcrPdfReader(pdfRenderer, ocr));
@@ -53,7 +80,7 @@ public class MainViewModel : ViewModelBase
         };
 
         Profiles = new ObservableCollection<ProfileItemViewModel>(
-            BuiltInProfiles.All.Select(p => new ProfileItemViewModel(
+            _profileManager.LoadAll().Select(p => new ProfileItemViewModel(
                 p,
                 hotkeys.TryGetValue(p.Id, out var hk) ? hk : string.Empty)));
 
@@ -65,10 +92,19 @@ public class MainViewModel : ViewModelBase
             }
         });
 
-        // Команда открытия документа: запрещена, пока идёт загрузка предыдущего.
         OpenDocumentCommand = new RelayCommand(
             execute: async _ => await OpenDocumentAsync(),
             canExecute: _ => !IsLoading);
+
+        IncreaseFontCommand = new RelayCommand(
+            execute: _ => CurrentFontSize = Math.Min(MaxFontSize, CurrentFontSize + FontStep),
+            canExecute: _ => CurrentFontSize < MaxFontSize);
+
+        DecreaseFontCommand = new RelayCommand(
+            execute: _ => CurrentFontSize = Math.Max(MinFontSize, CurrentFontSize - FontStep),
+            canExecute: _ => CurrentFontSize > MinFontSize);
+
+        SaveProfileCommand = new RelayCommand(_ => SaveCurrentAsProfile());
 
         // По умолчанию активен Стандартный профиль.
         ActivateProfile(Profiles.First());
@@ -87,6 +123,8 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<ProfileItemViewModel> Profiles { get; }
 
+    public IReadOnlyList<string> AvailableFonts => AvailableFontsList;
+
     public ProfileItemViewModel? ActiveProfile
     {
         get => _activeProfile;
@@ -99,21 +137,18 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Текст текущего открытого документа (или приветствие).</summary>
     public string DocumentText
     {
         get => _documentText;
         set => SetProperty(ref _documentText, value);
     }
 
-    /// <summary>Строка с информацией о документе для статусбара.</summary>
     public string DocumentInfo
     {
         get => _documentInfo;
         private set => SetProperty(ref _documentInfo, value);
     }
 
-    /// <summary>true, пока документ читается в фоновом потоке.</summary>
     public bool IsLoading
     {
         get => _isLoading;
@@ -121,15 +156,69 @@ public class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _isLoading, value))
             {
-                // Команды должны переоценить CanExecute, чтобы кнопка стала
-                // disabled во время загрузки.
                 CommandManager.InvalidateRequerySuggested();
             }
         }
     }
 
+    /// <summary>Шрифт, применяемый к области чтения в данный момент.</summary>
+    public string CurrentFontFamily
+    {
+        get => _currentFontFamily;
+        set => SetProperty(ref _currentFontFamily, value);
+    }
+
+    /// <summary>Размер шрифта (pt) — управляется слайдерами и кнопками A−/A+.</summary>
+    public double CurrentFontSize
+    {
+        get => _currentFontSize;
+        set
+        {
+            if (SetProperty(ref _currentFontSize, value))
+            {
+                OnPropertyChanged(nameof(EffectiveLineHeight));
+                OnPropertyChanged(nameof(StatusText));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Дополнительный межбуквенный интервал в пикселях. Хранится в профиле,
+    /// но к области чтения сейчас не применяется: WPF TextBlock/TextBox не
+    /// поддерживает letter spacing нативно, переход на FlowDocument запланирован
+    /// отдельно.
+    /// </summary>
+    public double CurrentLetterSpacing
+    {
+        get => _currentLetterSpacing;
+        set => SetProperty(ref _currentLetterSpacing, value);
+    }
+
+    /// <summary>Множитель высоты строки (1.5 = полуторный).</summary>
+    public double CurrentLineHeight
+    {
+        get => _currentLineHeight;
+        set
+        {
+            if (SetProperty(ref _currentLineHeight, value))
+            {
+                OnPropertyChanged(nameof(EffectiveLineHeight));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Высота строки в device-independent pixels — то, что ожидает
+    /// TextBlock.LineHeight. Множитель × текущий размер шрифта.
+    /// </summary>
+    public double EffectiveLineHeight => _currentFontSize * _currentLineHeight;
+
     public ICommand SelectProfileCommand { get; }
     public ICommand OpenDocumentCommand { get; }
+    public ICommand IncreaseFontCommand { get; }
+    public ICommand DecreaseFontCommand { get; }
+    public ICommand SaveProfileCommand { get; }
 
     public string StatusText
     {
@@ -140,8 +229,7 @@ public class MainViewModel : ViewModelBase
                 return "Готов к работе";
             }
 
-            var profile = ActiveProfile.Profile;
-            return $"Профиль: {profile.Name} · {profile.FontSize}pt";
+            return $"Профиль: {ActiveProfile.Profile.Name} · {CurrentFontSize:0}pt";
         }
     }
 
@@ -163,13 +251,76 @@ public class MainViewModel : ViewModelBase
 
         profileVm.IsActive = true;
         ActiveProfile = profileVm;
-        _themeApplier.Apply(profileVm.Profile.Id);
+
+        // Копируем настройки выбранного профиля в Current* — слайдеры/кнопки
+        // отразят его значения и смогут править их без мутации самого профиля.
+        var profile = profileVm.Profile;
+        CurrentFontFamily = profile.FontFamily;
+        CurrentFontSize = profile.FontSize;
+        CurrentLetterSpacing = profile.LetterSpacing;
+        CurrentLineHeight = profile.LineHeight;
+
+        _themeApplier.Apply(profile.BaseThemeId);
     }
 
     /// <summary>
-    /// Открывает документ асинхронно.
-    /// Чтение файла выполняется в фоновом потоке, чтобы UI оставался отзывчивым
-    /// даже при работе с большими документами.
+    /// Создаёт новый пользовательский профиль из текущих настроек,
+    /// сохраняет его на диск и активирует. Тема и цвета наследуются
+    /// от того профиля, который был активен в момент сохранения.
+    /// </summary>
+    private void SaveCurrentAsProfile()
+    {
+        var basis = ActiveProfile?.Profile ?? BuiltInProfiles.Standard;
+
+        var newName = GenerateUniqueProfileName("Мой профиль");
+        var newProfile = new ReadingProfile
+        {
+            Id = $"custom-{Guid.NewGuid():N}".Substring(0, 12),
+            Name = newName,
+            Description = $"На основе «{basis.Name}»",
+            FontFamily = CurrentFontFamily,
+            FontSize = CurrentFontSize,
+            IsBold = basis.IsBold,
+            LetterSpacing = CurrentLetterSpacing,
+            LineHeight = CurrentLineHeight,
+            WordSpacing = basis.WordSpacing,
+            Colors = basis.Colors,
+            IsBuiltIn = false,
+            BaseThemeId = basis.BaseThemeId
+        };
+
+        var newVm = new ProfileItemViewModel(newProfile, hotkey: string.Empty);
+        Profiles.Add(newVm);
+
+        _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
+
+        ActivateProfile(newVm);
+    }
+
+    private string GenerateUniqueProfileName(string baseName)
+    {
+        var existing = Profiles.Select(p => p.Profile.Name).ToHashSet();
+        if (!existing.Contains(baseName))
+        {
+            return baseName;
+        }
+
+        for (int i = 2; i < 1000; i++)
+        {
+            var candidate = $"{baseName} {i}";
+            if (!existing.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return $"{baseName} {Guid.NewGuid():N}".Substring(0, 30);
+    }
+
+    /// <summary>
+    /// Открывает документ асинхронно. Чтение файла выполняется в фоновом
+    /// потоке, чтобы UI оставался отзывчивым даже при работе с большими
+    /// документами.
     /// </summary>
     private async Task OpenDocumentAsync()
     {
@@ -210,15 +361,11 @@ public class MainViewModel : ViewModelBase
         var isPdf = string.Equals(
             Path.GetExtension(filePath), ".pdf", StringComparison.OrdinalIgnoreCase);
 
-        // Показываем индикатор загрузки. UI остаётся живым, потому что
-        // тяжёлая работа уезжает в Task.Run.
         IsLoading = true;
         DocumentInfo = $"Открываю {fileName}...";
 
         try
         {
-            // Чтение документа — операция, ограниченная процессором и диском.
-            // Task.Run переносит её в пул потоков, освобождая UI-поток.
             var result = await Task.Run(() => reader.Read(filePath));
 
             if (result.IsEmpty)
@@ -241,7 +388,6 @@ public class MainViewModel : ViewModelBase
                 return;
             }
 
-            // После await мы снова на UI-потоке, можно безопасно менять свойства.
             DocumentText = result.Text;
             DocumentInfo = $"{fileName} · {result.PageCount} стр.";
         }

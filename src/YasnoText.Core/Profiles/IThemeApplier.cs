@@ -13,8 +13,10 @@ namespace YasnoText.Core.Profiles;
 public interface IThemeApplier
 {
     /// <summary>
-    /// Применить тему по её идентификатору профиля.
+    /// Применить тему по её идентификатору.
     /// </summary>
-    /// <param name="profileId">Идентификатор: "standard", "low-vision", "dyslexia".</param>
-    void Apply(string profileId);
+    /// <param name="themeId">Идентификатор темы: "standard", "low-vision", "dyslexia".
+    /// Берётся из ReadingProfile.BaseThemeId, чтобы пользовательские профили
+    /// наследовали тему от того встроенного, на основе которого созданы.</param>
+    void Apply(string themeId);
 }
