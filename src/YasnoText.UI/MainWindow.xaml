@@ -257,6 +257,15 @@
                         Command="{Binding IncreaseFontCommand}"
                         FontWeight="SemiBold"
                         Style="{StaticResource ToolbarButton}" />
+
+                <Rectangle Width="1" Margin="10,4"
+                           Fill="{DynamicResource BorderBrush}" />
+
+                <Button x:Name="AutoScrollButton"
+                        Content="Автопрокрутка"
+                        Click="OnAutoScrollButtonClick"
+                        ToolTip="Включить автопрокрутку. Также — щелчок средней кнопкой мыши по документу. Выход — Esc или любой клик."
+                        Style="{StaticResource ToolbarButton}" />
             </StackPanel>
         </Border>
 
@@ -380,6 +389,27 @@
                                           FontFamily="{Binding CurrentFontFamily}"
                                           FontSize="{Binding CurrentFontSize}"
                                           Visibility="{Binding HasDocument, Converter={StaticResource BoolToVis}}" />
+
+                <!-- Overlay для индикатора автопрокрутки. IsHitTestVisible=False,
+                     чтобы клики через якорь доходили до viewer'а. Видимость и
+                     позиция управляются из code-behind. -->
+                <Canvas x:Name="AutoScrollOverlay"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed">
+                    <Border x:Name="AutoScrollAnchor"
+                            Width="36" Height="36"
+                            CornerRadius="18"
+                            Background="#A0606060"
+                            BorderBrush="#FFFFFFFF"
+                            BorderThickness="1">
+                        <TextBlock Text="↕"
+                                   Foreground="White"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                </Canvas>
             </Grid>
         </Grid>
 
