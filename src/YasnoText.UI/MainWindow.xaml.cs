@@ -122,10 +122,20 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // Любое изменение, влияющее на содержимое или внешний вид FlowDocument,
+        // требует его пересборки — наследование TextElement-свойств от
+        // FlowDocumentScrollViewer на свежесозданный FlowDocument в WPF
+        // отрабатывает ненадёжно, поэтому проще пересоздавать целиком.
         if (e.PropertyName == nameof(MainViewModel.DocumentText) ||
-            e.PropertyName == nameof(MainViewModel.EffectiveLineHeight))
+            e.PropertyName == nameof(MainViewModel.EffectiveLineHeight) ||
+            e.PropertyName == nameof(MainViewModel.CurrentFontFamily) ||
+            e.PropertyName == nameof(MainViewModel.CurrentFontSize))
         {
             UpdateReadingDocument();
+        }
+
+        if (e.PropertyName == nameof(MainViewModel.DocumentText))
+        {
             // При загрузке нового документа автопрокрутка — лишний сюрприз.
             StopAutoScroll();
         }
@@ -141,12 +151,16 @@ public partial class MainWindow : Window
     {
         var text = _viewModel.DocumentText ?? string.Empty;
 
+        // FontFamily/FontSize задаются явно: при смене значения combo/A+/A−
+        // viewer не «протекает» новый шрифт в уже созданный FlowDocument
+        // через наследование, поэтому шрифт не менялся. Foreground оставляем
+        // унаследованным — он завязан на DynamicResource темы.
         var doc = new FlowDocument
         {
             PagePadding = new Thickness(40, 30, 40, 30),
+            FontFamily = new System.Windows.Media.FontFamily(_viewModel.CurrentFontFamily),
+            FontSize = _viewModel.CurrentFontSize,
             LineHeight = _viewModel.EffectiveLineHeight,
-            // FontFamily/FontSize/Foreground наследуются от FlowDocumentScrollViewer
-            // через TextElement-наследование, поэтому здесь их явно не задаём.
         };
 
         var paragraphs = text.Split(ParagraphSeparators, StringSplitOptions.None);
