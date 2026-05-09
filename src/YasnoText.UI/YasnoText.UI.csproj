@@ -12,4 +12,13 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <!-- Языковые модели Tesseract лежат в /tessdata в корне репо
+       и не коммитятся (см. .gitignore). При сборке они копируются
+       в bin/.../tessdata/ рядом с .exe — сервис ищет их там. -->
+  <ItemGroup>
+    <Content Include="..\..\tessdata\*.traineddata" Link="tessdata\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
