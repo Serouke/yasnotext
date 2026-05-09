@@ -162,14 +162,13 @@
                                   CommandParameter="{Binding}" />
                 </Border.InputBindings>
                 <Border.ContextMenu>
-                    <!-- Контекстное меню по правому клику. Пункт «Удалить»
-                         делается серым на встроенных профилях через
-                         CanExecute команды (ReadingProfile.IsBuiltIn). -->
+                    <!-- ContextMenu в WPF — отдельный visual tree (Popup), поэтому
+                         RelativeSource AncestorType=Window отсюда не работает.
+                         Команда живёт прямо на ProfileItemViewModel и для встроенных
+                         профилей делается серой через CanExecute. -->
                     <ContextMenu>
                         <MenuItem Header="Удалить профиль"
-                                  Command="{Binding DataContext.DeleteProfileCommand,
-                                          RelativeSource={RelativeSource AncestorType=Window}}"
-                                  CommandParameter="{Binding}" />
+                                  Command="{Binding DeleteCommand}" />
                     </ContextMenu>
                 </Border.ContextMenu>
                 <StackPanel>
