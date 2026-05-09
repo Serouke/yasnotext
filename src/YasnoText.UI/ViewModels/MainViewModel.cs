@@ -15,7 +15,7 @@ namespace YasnoText.UI.ViewModels;
 public class MainViewModel : ViewModelBase
 {
     private readonly IThemeApplier _themeApplier;
-    private readonly IDocumentReader _pdfReader;
+    private readonly IDocumentReader[] _readers;
 
     private ProfileItemViewModel? _activeProfile;
     private string _documentText = string.Empty;
@@ -25,7 +25,11 @@ public class MainViewModel : ViewModelBase
     public MainViewModel(IThemeApplier themeApplier)
     {
         _themeApplier = themeApplier;
-        _pdfReader = new PdfTextReader();
+        _readers = new IDocumentReader[]
+        {
+            new PdfTextReader(),
+            new DocxTextReader()
+        };
 
         var hotkeys = new Dictionary<string, string>
         {
@@ -149,7 +153,7 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Открывает PDF-документ асинхронно.
+    /// Открывает документ асинхронно.
     /// Чтение файла выполняется в фоновом потоке, чтобы UI оставался отзывчивым
     /// даже при работе с большими документами.
     /// </summary>
@@ -158,7 +162,11 @@ public class MainViewModel : ViewModelBase
         var dialog = new OpenFileDialog
         {
             Title = "Открыть документ",
-            Filter = "PDF документы (*.pdf)|*.pdf|Все файлы (*.*)|*.*",
+            Filter =
+                "Документы (*.pdf;*.docx)|*.pdf;*.docx|" +
+                "PDF документы (*.pdf)|*.pdf|" +
+                "Word документы (*.docx)|*.docx|" +
+                "Все файлы (*.*)|*.*",
             CheckFileExists = true
         };
 
@@ -170,15 +178,20 @@ public class MainViewModel : ViewModelBase
         var filePath = dialog.FileName;
         var fileName = Path.GetFileName(filePath);
 
-        if (!_pdfReader.CanRead(filePath))
+        var reader = _readers.FirstOrDefault(r => r.CanRead(filePath));
+        if (reader == null)
         {
             MessageBox.Show(
-                "Этот формат файла пока не поддерживается. Откройте PDF-документ.",
+                "Этот формат файла пока не поддерживается. " +
+                "Поддерживаются PDF и DOCX.",
                 "ЯсноТекст",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
         }
+
+        var isPdf = string.Equals(
+            Path.GetExtension(filePath), ".pdf", StringComparison.OrdinalIgnoreCase);
 
         // Показываем индикатор загрузки. UI остаётся живым, потому что
         // тяжёлая работа уезжает в Task.Run.
@@ -187,21 +200,27 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            // Чтение PDF — операция, ограниченная процессором и диском.
+            // Чтение документа — операция, ограниченная процессором и диском.
             // Task.Run переносит её в пул потоков, освобождая UI-поток.
-            var result = await Task.Run(() => _pdfReader.Read(filePath));
+            var result = await Task.Run(() => reader.Read(filePath));
 
             if (result.IsEmpty)
             {
+                var message = isPdf
+                    ? "В этом PDF не найден текстовый слой. " +
+                      "Возможно, это скан — функция OCR будет добавлена в следующей версии."
+                    : "В этом документе не найден читаемый текст.";
+
                 MessageBox.Show(
-                    "В этом PDF не найден текстовый слой. " +
-                    "Возможно, это скан — функция OCR будет добавлена в следующей версии.",
+                    message,
                     "ЯсноТекст",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
                 DocumentText = "В документе не найден текст.";
-                DocumentInfo = $"{fileName} · скан без OCR";
+                DocumentInfo = isPdf
+                    ? $"{fileName} · скан без OCR"
+                    : $"{fileName} · пусто";
                 return;
             }
 

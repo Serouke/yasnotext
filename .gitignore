@@ -75,5 +75,6 @@ desktop.ini
 *.swp
 *~
 
-# Тестовые PDF должны коммититься
+# Тестовые PDF и DOCX должны коммититься
 !test-files/*.pdf
+!test-files/*.docx
