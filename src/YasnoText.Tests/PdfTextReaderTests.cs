@@ -115,6 +115,39 @@ public class PdfTextReaderTests
     }
 
     [Fact]
+    public void Read_MultipagePdf_DoesNotConcatenateWordsAcrossOperators()
+    {
+        // Регрессия: при использовании page.Text PdfPig склеивал текст из
+        // соседних Tj-операторов без пробела — пользователь видел в UI
+        // «ВведениеПроектная», «РеализацияПосле», «ЗаключениеГлавное».
+        // ContentOrderTextExtractor расставляет пробелы по геометрии.
+        var reader = new PdfTextReader();
+        var path = GetTestFilePath("multipage-text.pdf");
+        Assert.True(File.Exists(path), $"Тестовый файл не найден: {path}");
+
+        var result = reader.Read(path);
+
+        Assert.DoesNotContain("ВведениеПроектная", result.Text);
+        Assert.DoesNotContain("РеализацияПосле", result.Text);
+        Assert.DoesNotContain("ЗаключениеГлавное", result.Text);
+    }
+
+    [Fact]
+    public void Read_LongPdf_DoesNotConcatenateWordsAcrossOperators()
+    {
+        // Тот же баг на длинном тексте: «elit.Дислексия»,
+        // «происхождения.Параграф».
+        var reader = new PdfTextReader();
+        var path = GetTestFilePath("long-text.pdf");
+        Assert.True(File.Exists(path), $"Тестовый файл не найден: {path}");
+
+        var result = reader.Read(path);
+
+        Assert.DoesNotContain("elit.Дислексия", result.Text);
+        Assert.DoesNotContain("происхождения.Параграф", result.Text);
+    }
+
+    [Fact]
     public void Read_NonExistentFile_ThrowsFileNotFoundException()
     {
         var reader = new PdfTextReader();
