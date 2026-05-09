@@ -1,7 +1,10 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Threading;
 using YasnoText.UI.Themes;
 using YasnoText.UI.ViewModels;
 
@@ -11,7 +14,18 @@ public partial class MainWindow : Window
 {
     private static readonly string[] ParagraphSeparators = { "\r\n\r\n", "\n\n" };
 
+    /// <summary>Радиус «мёртвой зоны» вокруг якоря, в пикселях. Внутри — скролл стоит.</summary>
+    private const double AutoScrollDeadZone = 12;
+
+    /// <summary>Множитель скорости: пиксели прокрутки за тик на пиксель смещения курсора.</summary>
+    private const double AutoScrollSpeedFactor = 0.06;
+
     private readonly MainViewModel _viewModel;
+
+    private bool _autoScrollActive;
+    private Point _autoScrollAnchor;
+    private DispatcherTimer? _autoScrollTimer;
+    private ScrollViewer? _innerScrollViewer;
 
     public MainWindow()
     {
@@ -25,6 +39,12 @@ public partial class MainWindow : Window
         // блоков при изменении текста или межстрочного интервала.
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         UpdateReadingDocument();
+
+        // Автопрокрутка. Middle-click ловим через PreviewMouseDown viewer'а;
+        // выход (любой другой клик / Esc) — глобально на окне.
+        ReadingViewer.PreviewMouseDown += OnReadingViewerPreviewMouseDown;
+        PreviewMouseDown += OnWindowPreviewMouseDownForAutoScroll;
+        PreviewKeyDown += OnWindowPreviewKeyDownForAutoScroll;
 
         // Drag-and-drop файла из проводника. Сама подписка через AllowDrop
         // и атрибуты DragOver/Drop в XAML — здесь только обработчики.
@@ -101,6 +121,8 @@ public partial class MainWindow : Window
             e.PropertyName == nameof(MainViewModel.EffectiveLineHeight))
         {
             UpdateReadingDocument();
+            // При загрузке нового документа автопрокрутка — лишний сюрприз.
+            StopAutoScroll();
         }
     }
 
@@ -134,5 +156,148 @@ public partial class MainWindow : Window
         }
 
         ReadingViewer.Document = doc;
+    }
+
+    private void OnAutoScrollButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (_autoScrollActive)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        if (!_viewModel.HasDocument)
+        {
+            return;
+        }
+
+        // Стартуем с центра области чтения.
+        var center = new Point(
+            AutoScrollOverlay.ActualWidth / 2,
+            AutoScrollOverlay.ActualHeight / 2);
+        StartAutoScroll(center);
+    }
+
+    private void OnReadingViewerPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle)
+        {
+            return;
+        }
+
+        if (!_viewModel.HasDocument)
+        {
+            return;
+        }
+
+        if (_autoScrollActive)
+        {
+            StopAutoScroll();
+        }
+        else
+        {
+            StartAutoScroll(e.GetPosition(AutoScrollOverlay));
+        }
+
+        // Иначе FlowDocumentScrollViewer попробует сделать свой autoscroll/pan.
+        e.Handled = true;
+    }
+
+    private void OnWindowPreviewMouseDownForAutoScroll(object sender, MouseButtonEventArgs e)
+    {
+        // Любой клик кроме middle при активном режиме — выход.
+        // Middle на самом viewer'е обработан выше.
+        if (_autoScrollActive && e.ChangedButton != MouseButton.Middle)
+        {
+            StopAutoScroll();
+        }
+    }
+
+    private void OnWindowPreviewKeyDownForAutoScroll(object sender, KeyEventArgs e)
+    {
+        if (_autoScrollActive && e.Key == Key.Escape)
+        {
+            StopAutoScroll();
+            e.Handled = true;
+        }
+    }
+
+    private void StartAutoScroll(Point anchor)
+    {
+        EnsureInnerScrollViewer();
+        if (_innerScrollViewer == null)
+        {
+            return;
+        }
+
+        _autoScrollAnchor = anchor;
+        _autoScrollActive = true;
+
+        Canvas.SetLeft(AutoScrollAnchor, anchor.X - AutoScrollAnchor.Width / 2);
+        Canvas.SetTop(AutoScrollAnchor, anchor.Y - AutoScrollAnchor.Height / 2);
+        AutoScrollOverlay.Visibility = Visibility.Visible;
+        Cursor = Cursors.ScrollAll;
+
+        _autoScrollTimer ??= new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16),
+        };
+        _autoScrollTimer.Tick -= OnAutoScrollTick;
+        _autoScrollTimer.Tick += OnAutoScrollTick;
+        _autoScrollTimer.Start();
+    }
+
+    private void StopAutoScroll()
+    {
+        if (!_autoScrollActive)
+        {
+            return;
+        }
+
+        _autoScrollActive = false;
+        _autoScrollTimer?.Stop();
+        AutoScrollOverlay.Visibility = Visibility.Collapsed;
+        ClearValue(CursorProperty);
+    }
+
+    private void OnAutoScrollTick(object? sender, EventArgs e)
+    {
+        if (!_autoScrollActive || _innerScrollViewer == null)
+        {
+            return;
+        }
+
+        var current = Mouse.GetPosition(AutoScrollOverlay);
+        var delta = current.Y - _autoScrollAnchor.Y;
+        var absDelta = Math.Abs(delta);
+
+        if (absDelta < AutoScrollDeadZone)
+        {
+            // В мёртвой зоне курсор «нейтральный» — стоим на месте.
+            Cursor = Cursors.ScrollAll;
+            return;
+        }
+
+        var direction = Math.Sign(delta);
+        var speed = direction * (absDelta - AutoScrollDeadZone) * AutoScrollSpeedFactor;
+
+        _innerScrollViewer.ScrollToVerticalOffset(
+            _innerScrollViewer.VerticalOffset + speed);
+
+        Cursor = direction > 0 ? Cursors.ScrollS : Cursors.ScrollN;
+    }
+
+    private void EnsureInnerScrollViewer()
+    {
+        if (_innerScrollViewer != null)
+        {
+            return;
+        }
+
+        // FlowDocumentScrollViewer держит фактический ScrollViewer в template'е
+        // под именем PART_ContentHost. До ApplyTemplate() он может быть null.
+        ReadingViewer.ApplyTemplate();
+        _innerScrollViewer = ReadingViewer.Template?
+            .FindName("PART_ContentHost", ReadingViewer) as ScrollViewer;
     }
 }
