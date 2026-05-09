@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using YasnoText.Core.DocumentReaders;
+using YasnoText.Core.Ocr;
 using YasnoText.Core.Profiles;
 
 namespace YasnoText.UI.ViewModels;
@@ -25,10 +26,17 @@ public class MainViewModel : ViewModelBase
     public MainViewModel(IThemeApplier themeApplier)
     {
         _themeApplier = themeApplier;
+
+        // OCR-сервис ленив: tessdata проверяется только при первом распознавании,
+        // чтобы отсутствующие языковые модели не валили старт приложения.
+        var tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
+        var ocr = new TesseractOcrService(tessdataPath, "eng+rus");
+
         _readers = new IDocumentReader[]
         {
             new PdfTextReader(),
-            new DocxTextReader()
+            new DocxTextReader(),
+            new OcrImageReader(ocr)
         };
 
         var hotkeys = new Dictionary<string, string>
@@ -163,9 +171,12 @@ public class MainViewModel : ViewModelBase
         {
             Title = "Открыть документ",
             Filter =
-                "Документы (*.pdf;*.docx)|*.pdf;*.docx|" +
+                "Документы и изображения (*.pdf;*.docx;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp)|" +
+                    "*.pdf;*.docx;*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp|" +
                 "PDF документы (*.pdf)|*.pdf|" +
                 "Word документы (*.docx)|*.docx|" +
+                "Изображения (*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp)|" +
+                    "*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp|" +
                 "Все файлы (*.*)|*.*",
             CheckFileExists = true
         };

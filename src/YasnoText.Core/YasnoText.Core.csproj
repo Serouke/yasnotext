@@ -13,6 +13,7 @@
          в которой есть известные уязвимости (GHSA-f32c-w444-8ppv,
          GHSA-qj66-m88j-hmgj). OpenXml 3.1.0 продолжает на ней работать. -->
     <PackageReference Include="System.IO.Packaging" Version="10.0.0" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
 </Project>

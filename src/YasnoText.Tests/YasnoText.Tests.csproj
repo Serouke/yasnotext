@@ -22,4 +22,11 @@
     <ProjectReference Include="..\YasnoText.Core\YasnoText.Core.csproj" />
   </ItemGroup>
 
+  <!-- Tesseract-тестам нужны языковые модели рядом с тестовой dll. -->
+  <ItemGroup>
+    <Content Include="..\..\tessdata\*.traineddata" Link="tessdata\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
