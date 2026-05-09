@@ -151,15 +151,14 @@ public partial class MainWindow : Window
     {
         var text = _viewModel.DocumentText ?? string.Empty;
 
-        // FontFamily/FontSize задаются явно: при смене значения combo/A+/A−
-        // viewer не «протекает» новый шрифт в уже созданный FlowDocument
-        // через наследование, поэтому шрифт не менялся. Foreground оставляем
-        // унаследованным — он завязан на DynamicResource темы.
+        var fontFamily = new System.Windows.Media.FontFamily(_viewModel.CurrentFontFamily);
+        var fontSize = _viewModel.CurrentFontSize;
+
         var doc = new FlowDocument
         {
             PagePadding = new Thickness(40, 30, 40, 30),
-            FontFamily = new System.Windows.Media.FontFamily(_viewModel.CurrentFontFamily),
-            FontSize = _viewModel.CurrentFontSize,
+            FontFamily = fontFamily,
+            FontSize = fontSize,
             LineHeight = _viewModel.EffectiveLineHeight,
         };
 
@@ -171,7 +170,16 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            doc.Blocks.Add(new Paragraph(new Run(paragraphText)));
+            // FontSize/FontFamily задаются и на FlowDocument, и на Paragraph:
+            // в WPF наследование TextElement-свойств от программно созданного
+            // FlowDocument к его блокам срабатывает не во всех конфигурациях
+            // FlowDocumentScrollViewer (A+/A− меняли только LineHeight, шрифт
+            // оставался прежним). Локальная установка на Paragraph — гарантия.
+            doc.Blocks.Add(new Paragraph(new Run(paragraphText))
+            {
+                FontFamily = fontFamily,
+                FontSize = fontSize,
+            });
         }
 
         ReadingViewer.Document = doc;
