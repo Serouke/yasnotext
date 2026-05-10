@@ -54,6 +54,7 @@ public class MainViewModel : ViewModelBase
     private bool _isLoading;
     private bool _hasDocument;
     private string? _currentDocumentPath;
+    private bool _isReadingMode;
 
     private string _currentFontFamily = "Segoe UI";
     private double _currentFontSize = 14;
@@ -117,6 +118,8 @@ public class MainViewModel : ViewModelBase
         CloseDocumentCommand = new RelayCommand(
             execute: _ => CloseDocument(),
             canExecute: _ => HasDocument && !IsLoading);
+
+        ToggleReadingModeCommand = new RelayCommand(_ => IsReadingMode = !IsReadingMode);
 
         IncreaseFontCommand = new RelayCommand(
             execute: _ => CurrentFontSize = Math.Min(MaxFontSize, CurrentFontSize + FontStep),
@@ -203,6 +206,22 @@ public class MainViewModel : ViewModelBase
     /// <summary>Удобный инверс для Visibility-биндинга без конвертера.</summary>
     public bool HasNoDocument => !_hasDocument;
 
+    /// <summary>Режим «только чтение» — скрывает меню, toolbar, sidebar и status bar.</summary>
+    public bool IsReadingMode
+    {
+        get => _isReadingMode;
+        set
+        {
+            if (SetProperty(ref _isReadingMode, value))
+            {
+                OnPropertyChanged(nameof(IsNotReadingMode));
+            }
+        }
+    }
+
+    /// <summary>Инверс для Visibility-биндинга элементов, видимых вне reading mode.</summary>
+    public bool IsNotReadingMode => !_isReadingMode;
+
     /// <summary>Шрифт, применяемый к области чтения в данный момент.</summary>
     public string CurrentFontFamily
     {
@@ -251,6 +270,7 @@ public class MainViewModel : ViewModelBase
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
+    public ICommand ToggleReadingModeCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
 

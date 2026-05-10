@@ -106,6 +106,11 @@ public partial class MainWindow : Window
             _viewModel.CloseDocumentCommand,
             Key.W, ModifierKeys.Control));
 
+        // Режим чтения — скрыть всё кроме текста.
+        InputBindings.Add(new KeyBinding(
+            _viewModel.ToggleReadingModeCommand,
+            Key.F11, ModifierKeys.None));
+
         // Изменение размера шрифта. OemPlus/OemMinus — это «=/+» и «-» на
         // основной части клавиатуры, Add/Subtract — на numpad.
         InputBindings.Add(new KeyBinding(
@@ -274,9 +279,22 @@ public partial class MainWindow : Window
 
     private void OnWindowPreviewKeyDownForAutoScroll(object sender, KeyEventArgs e)
     {
-        if (_autoScrollActive && e.Key == Key.Escape)
+        if (e.Key != Key.Escape)
+        {
+            return;
+        }
+
+        // Esc приоритетно гасит autoscroll. Если автопрокрутка не активна,
+        // но пользователь в reading mode — Esc выходит из режима. Это
+        // привычно по аналогии с fullscreen в браузерах/плеерах.
+        if (_autoScrollActive)
         {
             StopAutoScroll();
+            e.Handled = true;
+        }
+        else if (_viewModel.IsReadingMode)
+        {
+            _viewModel.IsReadingMode = false;
             e.Handled = true;
         }
     }
