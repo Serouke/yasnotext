@@ -51,6 +51,20 @@ public partial class MainWindow : Window
         PreviewMouseDown += OnWindowPreviewMouseDownForAutoScroll;
         PreviewKeyDown += OnWindowPreviewKeyDownForAutoScroll;
 
+        // Drag-and-drop файла. FlowDocumentScrollViewer помечает drag-события
+        // своим текстовым drag&drop'ом как handled, поэтому атрибуты на Window
+        // (DragOver=...) перестают срабатывать после открытия документа. Через
+        // AddHandler с handledEventsToo: true Window получает событие в любом
+        // случае, и drag-into-window работает над любой частью UI.
+        AddHandler(DragEnterEvent,
+            new DragEventHandler(OnWindowDragEnter), handledEventsToo: true);
+        AddHandler(DragOverEvent,
+            new DragEventHandler(OnWindowDragOver), handledEventsToo: true);
+        AddHandler(DragLeaveEvent,
+            new DragEventHandler(OnWindowDragLeave), handledEventsToo: true);
+        AddHandler(DropEvent,
+            new DragEventHandler(OnWindowDrop), handledEventsToo: true);
+
         // Drag-and-drop файла из проводника. Сама подписка через AllowDrop
         // и атрибуты DragOver/Drop в XAML — здесь только обработчики.
 
