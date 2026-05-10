@@ -49,6 +49,7 @@ public class MainViewModel : ViewModelBase
     private string _documentInfo = "Документ не открыт";
     private bool _isLoading;
     private bool _hasDocument;
+    private string? _currentDocumentPath;
 
     private string _currentFontFamily = "Segoe UI";
     private double _currentFontSize = 14;
@@ -428,6 +429,16 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // Тот же документ уже открыт — повторное чтение бессмысленно.
+        // Case-insensitive, потому что Windows-пути нормализуются по-разному
+        // (drag из проводника vs recent vs ручной выбор).
+        if (HasDocument &&
+            _currentDocumentPath != null &&
+            string.Equals(_currentDocumentPath, filePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         var fileName = Path.GetFileName(filePath);
 
         if (!File.Exists(filePath))
@@ -529,6 +540,7 @@ public class MainViewModel : ViewModelBase
             // Запоминаем файл в списке недавних только при успешном открытии.
             _recentFilesService.Add(filePath);
             ReloadRecentFiles();
+            _currentDocumentPath = filePath;
         }
         catch (Exception ex)
         {
@@ -562,5 +574,6 @@ public class MainViewModel : ViewModelBase
         DocumentText = string.Empty;
         DocumentInfo = "Документ не открыт";
         HasDocument = false;
+        _currentDocumentPath = null;
     }
 }
