@@ -12,10 +12,6 @@
         MinWidth="900"
         WindowStartupLocation="CenterScreen"
         AllowDrop="True"
-        DragEnter="OnWindowDragEnter"
-        DragOver="OnWindowDragOver"
-        DragLeave="OnWindowDragLeave"
-        Drop="OnWindowDrop"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource TextBrush}"
         FontFamily="{DynamicResource UIFontFamily}">
@@ -200,6 +196,9 @@
                 <MenuItem Header="Открыть..."
                           InputGestureText="Ctrl+O"
                           Command="{Binding OpenDocumentCommand}" />
+                <MenuItem Header="Закрыть документ"
+                          InputGestureText="Ctrl+W"
+                          Command="{Binding CloseDocumentCommand}" />
                 <MenuItem Header="Недавние"
                           ItemsSource="{Binding RecentFiles}"
                           IsEnabled="{Binding HasRecentFiles}">
@@ -256,6 +255,10 @@
             <StackPanel Orientation="Horizontal">
                 <Button Content="Открыть"
                         Command="{Binding OpenDocumentCommand}"
+                        Style="{StaticResource ToolbarButton}" />
+                <Button Content="Закрыть"
+                        Command="{Binding CloseDocumentCommand}"
+                        ToolTip="Закрыть документ (Ctrl+W)"
                         Style="{StaticResource ToolbarButton}" />
                 <Button Content="Сохранить настройки"
                         Command="{Binding SaveProfileCommand}"

@@ -109,6 +109,10 @@ public class MainViewModel : ViewModelBase
             },
             canExecute: _ => !IsLoading);
 
+        CloseDocumentCommand = new RelayCommand(
+            execute: _ => CloseDocument(),
+            canExecute: _ => HasDocument && !IsLoading);
+
         IncreaseFontCommand = new RelayCommand(
             execute: _ => CurrentFontSize = Math.Min(MaxFontSize, CurrentFontSize + FontStep),
             canExecute: _ => CurrentFontSize < MaxFontSize);
@@ -186,6 +190,7 @@ public class MainViewModel : ViewModelBase
             if (SetProperty(ref _hasDocument, value))
             {
                 OnPropertyChanged(nameof(HasNoDocument));
+                CommandManager.InvalidateRequerySuggested();
             }
         }
     }
@@ -237,6 +242,7 @@ public class MainViewModel : ViewModelBase
     public ICommand SelectProfileCommand { get; }
     public ICommand OpenDocumentCommand { get; }
     public ICommand OpenRecentCommand { get; }
+    public ICommand CloseDocumentCommand { get; }
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
@@ -548,5 +554,13 @@ public class MainViewModel : ViewModelBase
             RecentFiles.Add(path);
         }
         OnPropertyChanged(nameof(HasRecentFiles));
+    }
+
+    /// <summary>Закрывает текущий документ — возвращает onboarding-экран.</summary>
+    private void CloseDocument()
+    {
+        DocumentText = string.Empty;
+        DocumentInfo = "Документ не открыт";
+        HasDocument = false;
     }
 }
