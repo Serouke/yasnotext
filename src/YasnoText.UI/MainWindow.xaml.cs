@@ -101,6 +101,11 @@ public partial class MainWindow : Window
             _viewModel.SaveProfileCommand,
             Key.S, ModifierKeys.Control));
 
+        // Закрыть текущий документ.
+        InputBindings.Add(new KeyBinding(
+            _viewModel.CloseDocumentCommand,
+            Key.W, ModifierKeys.Control));
+
         // Изменение размера шрифта. OemPlus/OemMinus — это «=/+» и «-» на
         // основной части клавиатуры, Add/Subtract — на numpad.
         InputBindings.Add(new KeyBinding(
