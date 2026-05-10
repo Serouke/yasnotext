@@ -39,6 +39,10 @@ public class MainViewModel : ViewModelBase
     private const double MaxFontSize = 72;
     private const double FontStep = 1;
 
+    /// <summary>Сколько пользовательских профилей разрешено хранить.
+    /// Со встроенными вместе получается до 10 в списке.</summary>
+    private const int MaxUserProfiles = 7;
+
     private readonly IThemeApplier _themeApplier;
     private readonly ProfileManager _profileManager;
     private readonly RecentFilesService _recentFilesService;
@@ -305,6 +309,18 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     private void SaveCurrentAsProfile()
     {
+        var userProfileCount = Profiles.Count(p => !p.Profile.IsBuiltIn);
+        if (userProfileCount >= MaxUserProfiles)
+        {
+            MessageBox.Show(
+                $"Нельзя хранить больше {MaxUserProfiles} пользовательских профилей. " +
+                "Удалите ненужный через правый клик по карточке и попробуйте снова.",
+                "ЯсноТекст",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
         var basis = ActiveProfile?.Profile ?? BuiltInProfiles.Standard;
 
         var newName = GenerateUniqueProfileName("Мой профиль");
