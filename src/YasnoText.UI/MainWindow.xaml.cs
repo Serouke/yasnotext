@@ -24,6 +24,16 @@ public partial class MainWindow : Window
     /// Чем больше — тем отзывчивее, но резче. 12 даёт ~0.4 сек до ~95% целевой скорости.</summary>
     private const double AutoScrollSmoothingRate = 12.0;
 
+    /// <summary>Верхний предел абсолютной скорости (px/s). Защита от зависаний
+    /// на огромных документах с большим шрифтом, где каждый ScrollToVerticalOffset
+    /// заставляет WPF пересчитывать тяжёлый layout.</summary>
+    private const double AutoScrollMaxSpeed = 2500;
+
+    /// <summary>Верхняя клипа на dt одного кадра. Если кадр пришёл с лагом
+    /// (например, ScrollToVerticalOffset подвис), не интегрируем огромный
+    /// прыжок за «прошедшее» время — иначе вылетим в самый низ за один тик.</summary>
+    private const double AutoScrollMaxFrameDt = 0.05;
+
     private readonly MainViewModel _viewModel;
 
     private bool _autoScrollActive;
@@ -343,11 +353,17 @@ public partial class MainWindow : Window
         var dt = (now - _autoScrollLastFrameTime).TotalSeconds;
         _autoScrollLastFrameTime = now;
 
-        // Аномально большой dt (например, окно было свёрнуто) — пропускаем,
-        // иначе рывок на сотни пикселей за один frame.
-        if (dt <= 0 || dt > 0.1)
+        if (dt <= 0)
         {
             return;
+        }
+
+        // Один лагнувший кадр (например, ScrollToVerticalOffset подвис на
+        // тяжёлом FlowDocument) не должен превращаться в прыжок на сотни
+        // пикселей. Клипуем dt сверху.
+        if (dt > AutoScrollMaxFrameDt)
+        {
+            dt = AutoScrollMaxFrameDt;
         }
 
         var current = Mouse.GetPosition(AutoScrollOverlay);
@@ -367,6 +383,10 @@ public partial class MainWindow : Window
             // Quadratic curve: на маленьких смещениях скорость растёт мягко,
             // на больших — заметно быстрее. Гораздо приятнее линейного.
             targetSpeed = direction * beyond * beyond * AutoScrollSpeedFactor;
+            // Верхний предел — защита от зависаний на гигантских документах
+            // с крупным шрифтом, где WPF тратит много времени на layout
+            // при каждом ScrollToVerticalOffset.
+            targetSpeed = Math.Clamp(targetSpeed, -AutoScrollMaxSpeed, AutoScrollMaxSpeed);
             Cursor = direction > 0 ? Cursors.ScrollS : Cursors.ScrollN;
         }
 
