@@ -283,15 +283,6 @@
                         Command="{Binding IncreaseFontCommand}"
                         FontWeight="SemiBold"
                         Style="{StaticResource ToolbarButton}" />
-
-                <Rectangle Width="1" Margin="10,4"
-                           Fill="{DynamicResource BorderBrush}" />
-
-                <Button x:Name="AutoScrollButton"
-                        Content="Автопрокрутка"
-                        Click="OnAutoScrollButtonClick"
-                        ToolTip="Включить автопрокрутку. Также — щелчок средней кнопкой мыши по документу. Выход — Esc или любой клик."
-                        Style="{StaticResource ToolbarButton}" />
             </StackPanel>
         </Border>
 

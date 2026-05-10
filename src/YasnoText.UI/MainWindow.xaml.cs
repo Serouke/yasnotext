@@ -237,26 +237,6 @@ public partial class MainWindow : Window
         ReadingViewer.Document = doc;
     }
 
-    private void OnAutoScrollButtonClick(object sender, RoutedEventArgs e)
-    {
-        if (_autoScrollActive)
-        {
-            StopAutoScroll();
-            return;
-        }
-
-        if (!_viewModel.HasDocument)
-        {
-            return;
-        }
-
-        // Стартуем с центра области чтения.
-        var center = new Point(
-            AutoScrollOverlay.ActualWidth / 2,
-            AutoScrollOverlay.ActualHeight / 2);
-        StartAutoScroll(center);
-    }
-
     private void OnReadingViewerPreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Middle)
