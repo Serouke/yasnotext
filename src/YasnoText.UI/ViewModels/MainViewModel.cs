@@ -6,6 +6,7 @@ using Microsoft.Win32;
 using YasnoText.Core.DocumentReaders;
 using YasnoText.Core.Ocr;
 using YasnoText.Core.Profiles;
+using YasnoText.Core.Tts;
 
 namespace YasnoText.UI.ViewModels;
 
@@ -47,6 +48,7 @@ public class MainViewModel : ViewModelBase
     private readonly ProfileManager _profileManager;
     private readonly RecentFilesService _recentFilesService;
     private readonly IDocumentReader[] _readers;
+    private readonly ITextToSpeechService _ttsService;
 
     private ProfileItemViewModel? _activeProfile;
     private string _documentText = string.Empty;
@@ -60,11 +62,13 @@ public class MainViewModel : ViewModelBase
     private double _currentFontSize = 14;
     private double _currentLineHeight = 1.5;
 
-    public MainViewModel(IThemeApplier themeApplier)
+    public MainViewModel(IThemeApplier themeApplier, ITextToSpeechService ttsService)
     {
         _themeApplier = themeApplier;
         _profileManager = new ProfileManager();
         _recentFilesService = new RecentFilesService();
+        _ttsService = ttsService;
+        _ttsService.StateChanged += OnTtsStateChanged;
 
         var tessdataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
         var ocr = new TesseractOcrService(tessdataPath, "eng+rus");
@@ -121,6 +125,14 @@ public class MainViewModel : ViewModelBase
             canExecute: _ => HasDocument && !IsLoading);
 
         ToggleReadingModeCommand = new RelayCommand(_ => IsReadingMode = !IsReadingMode);
+
+        PlayPauseCommand = new RelayCommand(
+            execute: _ => TogglePlayPause(),
+            canExecute: _ => HasDocument && !string.IsNullOrWhiteSpace(DocumentText));
+
+        StopSpeechCommand = new RelayCommand(
+            execute: _ => _ttsService.Stop(),
+            canExecute: _ => _ttsService.State != SpeechState.Stopped);
 
         IncreaseFontCommand = new RelayCommand(
             execute: _ => CurrentFontSize = Math.Min(MaxFontSize, CurrentFontSize + FontStep),
@@ -279,8 +291,31 @@ public class MainViewModel : ViewModelBase
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
     public ICommand ToggleReadingModeCommand { get; }
+    public ICommand PlayPauseCommand { get; }
+    public ICommand StopSpeechCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
+
+    /// <summary>true пока синтезатор реально говорит (для биндинга подсветки и иконки).</summary>
+    public bool IsSpeaking => _ttsService.State == SpeechState.Speaking;
+
+    /// <summary>true когда на паузе.</summary>
+    public bool IsPaused => _ttsService.State == SpeechState.Paused;
+
+    /// <summary>Динамическая надпись на кнопке «Озвучить»/«Пауза»/«Продолжить».</summary>
+    public string PlayPauseLabel => _ttsService.State switch
+    {
+        SpeechState.Speaking => "Пауза",
+        SpeechState.Paused => "Продолжить",
+        _ => "Озвучить"
+    };
+
+    /// <summary>Для подписки в MainWindow.xaml.cs — handler подсветки текущего предложения.</summary>
+    public event EventHandler<SpeechProgressEventArgs>? SpeechProgress
+    {
+        add => _ttsService.Progress += value;
+        remove => _ttsService.Progress -= value;
+    }
 
     /// <summary>Список путей к недавним файлам в порядке от свежего к старому.</summary>
     public ObservableCollection<string> RecentFiles { get; private set; } = new();
@@ -604,6 +639,10 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // При загрузке нового документа останавливаем озвучку — иначе синтезатор
+        // продолжит читать прошлый текст, пока пользователь смотрит уже новый.
+        _ttsService.Stop();
+
         var fileName = Path.GetFileName(filePath);
 
         if (!File.Exists(filePath))
@@ -736,9 +775,49 @@ public class MainViewModel : ViewModelBase
     /// <summary>Закрывает текущий документ — возвращает onboarding-экран.</summary>
     private void CloseDocument()
     {
+        _ttsService.Stop();
         DocumentText = string.Empty;
         DocumentInfo = "Документ не открыт";
         HasDocument = false;
         _currentDocumentPath = null;
+    }
+
+    private void TogglePlayPause()
+    {
+        switch (_ttsService.State)
+        {
+            case SpeechState.Stopped:
+                _ttsService.Speak(DocumentText);
+                break;
+            case SpeechState.Speaking:
+                _ttsService.Pause();
+                break;
+            case SpeechState.Paused:
+                _ttsService.Resume();
+                break;
+        }
+    }
+
+    private void OnTtsStateChanged(object? sender, EventArgs e)
+    {
+        // События могут приходить из non-UI потока (синтезатор работает в своём).
+        // Маршалим на UI-thread.
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(NotifyTtsStateChanged);
+        }
+        else
+        {
+            NotifyTtsStateChanged();
+        }
+    }
+
+    private void NotifyTtsStateChanged()
+    {
+        OnPropertyChanged(nameof(IsSpeaking));
+        OnPropertyChanged(nameof(IsPaused));
+        OnPropertyChanged(nameof(PlayPauseLabel));
+        CommandManager.InvalidateRequerySuggested();
     }
 }

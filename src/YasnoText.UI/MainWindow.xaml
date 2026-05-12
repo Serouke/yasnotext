@@ -271,6 +271,14 @@
                           InputGestureText="F11"
                           Command="{Binding ToggleReadingModeCommand}" />
             </MenuItem>
+            <MenuItem Header="Озвучка">
+                <MenuItem Header="{Binding PlayPauseLabel}"
+                          InputGestureText="F5"
+                          Command="{Binding PlayPauseCommand}" />
+                <MenuItem Header="Остановить"
+                          InputGestureText="Shift+F5"
+                          Command="{Binding StopSpeechCommand}" />
+            </MenuItem>
             <MenuItem Header="Справка">
                 <MenuItem Header="О программе" Command="{Binding ShowAboutCommand}" />
             </MenuItem>
@@ -313,6 +321,18 @@
                 <Button Content="A+"
                         Command="{Binding IncreaseFontCommand}"
                         FontWeight="SemiBold"
+                        Style="{StaticResource ToolbarButton}" />
+
+                <Rectangle Width="1" Margin="10,4"
+                           Fill="{DynamicResource BorderBrush}" />
+
+                <Button Content="{Binding PlayPauseLabel}"
+                        Command="{Binding PlayPauseCommand}"
+                        ToolTip="Озвучить текст (F5)"
+                        Style="{StaticResource ToolbarButton}" />
+                <Button Content="Стоп"
+                        Command="{Binding StopSpeechCommand}"
+                        ToolTip="Остановить озвучку (Shift+F5)"
                         Style="{StaticResource ToolbarButton}" />
             </StackPanel>
         </Border>

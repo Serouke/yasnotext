@@ -52,7 +52,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        _viewModel = new MainViewModel(new WpfThemeApplier());
+        _viewModel = new MainViewModel(
+            new WpfThemeApplier(),
+            new YasnoText.UI.Tts.SystemSpeechService());
         DataContext = _viewModel;
 
         // FlowDocument строится в code-behind, потому что у FlowDocument
@@ -116,6 +118,14 @@ public partial class MainWindow : Window
         InputBindings.Add(new KeyBinding(
             _viewModel.ToggleReadingModeCommand,
             Key.F11, ModifierKeys.None));
+
+        // Озвучка: F5 — старт/пауза/продолжить, Shift+F5 — стоп.
+        InputBindings.Add(new KeyBinding(
+            _viewModel.PlayPauseCommand,
+            Key.F5, ModifierKeys.None));
+        InputBindings.Add(new KeyBinding(
+            _viewModel.StopSpeechCommand,
+            Key.F5, ModifierKeys.Shift));
 
         // Изменение размера шрифта. OemPlus/OemMinus — это «=/+» и «-» на
         // основной части клавиатуры, Add/Subtract — на numpad.
