@@ -624,20 +624,45 @@
 
     </DockPanel>
 
-        <!-- Подсказка о выходе из режима чтения. Через 3 секунды плавно
+        <!-- Подсказка-кнопка выхода из режима чтения. Через 3 секунды плавно
              исчезает, чтобы не мешала чтению. Возвращается через
-             OnMouseMoveInReadingMode handler в code-behind. -->
-        <Border x:Name="ReadingModeHint"
+             OnWindowPreviewMouseMoveForReadingHint handler в code-behind.
+             Клик по плашке = ToggleReadingModeCommand (т.е. выход). -->
+        <Button x:Name="ReadingModeHint"
                 Visibility="{Binding IsReadingMode, Converter={StaticResource BoolToVis}}"
+                Command="{Binding ToggleReadingModeCommand}"
                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                Margin="16" Padding="10,5"
-                CornerRadius="4"
-                Background="#A0606060"
-                IsHitTestVisible="False">
-            <TextBlock Text="F11 — выйти из режима чтения"
-                       Foreground="White"
-                       FontSize="11" />
-        </Border>
+                Margin="16"
+                ToolTip="Выйти из режима чтения (F11 / Esc)"
+                Cursor="Hand"
+                Focusable="False">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Padding="12,6"
+                            CornerRadius="4"
+                            Background="#A0606060">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✕"
+                                       Foreground="White"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Margin="0,0,8,0"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="Выйти из режима чтения"
+                                       Foreground="White"
+                                       FontSize="11"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#D0303030" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
 
         <!-- Overlay при drag-and-drop файла. IsHitTestVisible=False, чтобы
              события Drop/DragLeave доходили до Window — иначе drop попадал бы
