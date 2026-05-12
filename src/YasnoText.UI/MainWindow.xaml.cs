@@ -172,6 +172,15 @@ public partial class MainWindow : Window
 
     private void OnWindowDragOver(object sender, DragEventArgs e)
     {
+        // Если это перетаскивание карточки профиля — не трогаем Effects,
+        // их выставил Border-handler. Иначе мы бы каждым кадром затирали
+        // его значение, потому что Window зарегистрирован с
+        // handledEventsToo: true и получает событие даже после Handled=true.
+        if (e.Data.GetDataPresent(ProfileCardDragFormat))
+        {
+            return;
+        }
+
         // Курсор меняется на «копировать» только если перетаскивается файл.
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
             ? DragDropEffects.Copy
@@ -662,13 +671,38 @@ public partial class MainWindow : Window
     {
         // Подсвечиваем только валидные цели: drag нашего формата, и target —
         // пользовательский профиль (на built-in бросить нельзя).
-        if (!e.Data.GetDataPresent(ProfileCardDragFormat)) return;
         if (sender is not Border border) return;
         if (border.DataContext is not ProfileItemViewModel vm) return;
-        if (vm.Profile.IsBuiltIn) return;
+
+        if (!IsValidProfileDropTarget(e, vm))
+        {
+            return;
+        }
 
         border.BorderBrush = (Brush)FindResource("AccentBrush");
         border.BorderThickness = new Thickness(2.5);
+    }
+
+    private void OnProfileCardDragOver(object sender, DragEventArgs e)
+    {
+        // Без явной установки Effects в DragOver WPF считает drop невалидным
+        // и вообще не вызывает Drop-handler — поэтому без этого метода
+        // перетаскивание профилей «ничего не делало».
+        var allowed = sender is Border border &&
+                      border.DataContext is ProfileItemViewModel vm &&
+                      IsValidProfileDropTarget(e, vm);
+
+        e.Effects = allowed ? DragDropEffects.Move : DragDropEffects.None;
+
+        // Останавливаем bubbling до Window-handler'а, который рассчитан на
+        // drop файлов из проводника и иначе перезаписал бы Effects на None.
+        e.Handled = true;
+    }
+
+    private static bool IsValidProfileDropTarget(DragEventArgs e, ProfileItemViewModel target)
+    {
+        return e.Data.GetDataPresent(ProfileCardDragFormat) &&
+               !target.Profile.IsBuiltIn;
     }
 
     private void OnProfileCardDragLeave(object sender, DragEventArgs e)
