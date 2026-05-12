@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:YasnoText.UI.ViewModels"
         mc:Ignorable="d"
-        Title="ЯсноТекст"
+        Title="{Binding WindowTitle}"
         Height="720"
         Width="1180"
         MinHeight="500"
@@ -19,6 +19,120 @@
     <Window.Resources>
 
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- Тематически-нейтральный ComboBox: фон и текст идут из темы,
+             поэтому combo не висит «белым островом» на тёмном/бежевом фоне.
+             Минимальный кастомный template без зависимостей от системных
+             цветов: ToggleButton + ContentPresenter + Popup. -->
+        <Style x:Key="ThemedComboBoxToggle" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{DynamicResource WindowBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="22" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                  Margin="8,4,0,4"
+                                                  HorizontalAlignment="Left"
+                                                  VerticalAlignment="Center" />
+                                <Path Grid.Column="1"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      Data="M 0,0 L 8,0 L 4,5 Z"
+                                      Fill="{DynamicResource SecondaryTextBrush}" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SidebarBackgroundBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThemedComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background"
+                                        Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource WindowBackgroundBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background"
+                                        Value="{DynamicResource SidebarBackgroundBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThemedComboBox" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource ThemedComboBoxItem}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Style="{StaticResource ThemedComboBoxToggle}"
+                                          IsChecked="{Binding IsDropDownOpen,
+                                              Mode=TwoWay,
+                                              RelativeSource={RelativeSource TemplatedParent}}">
+                                <ContentPresenter x:Name="ContentSite"
+                                                  IsHitTestVisible="False"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                  TextElement.Foreground="{DynamicResource TextBrush}" />
+                            </ToggleButton>
+                            <Popup x:Name="Popup"
+                                   AllowsTransparency="True"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   PopupAnimation="Slide">
+                                <Border Background="{DynamicResource WindowBackgroundBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer SnapsToDevicePixels="True"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Кнопка панели инструментов: тонкая рамка, hover заливает AccentBrush
              и сливает рамку с фоном. -->
@@ -167,6 +281,8 @@
                     AllowDrop="True"
                     PreviewMouseLeftButtonDown="OnProfileCardPreviewMouseDown"
                     MouseMove="OnProfileCardMouseMove"
+                    DragEnter="OnProfileCardDragEnter"
+                    DragLeave="OnProfileCardDragLeave"
                     Drop="OnProfileCardDrop">
                 <Border.InputBindings>
                     <MouseBinding MouseAction="LeftClick"
@@ -280,6 +396,8 @@
                           Command="{Binding StopSpeechCommand}" />
             </MenuItem>
             <MenuItem Header="Справка">
+                <MenuItem Header="Горячие клавиши..." Command="{Binding ShowHotkeysCommand}" />
+                <Separator />
                 <MenuItem Header="О программе" Command="{Binding ShowAboutCommand}" />
             </MenuItem>
         </Menu>
@@ -406,7 +524,7 @@
                         <ComboBox ItemsSource="{Binding AvailableFonts}"
                                   SelectedItem="{Binding CurrentFontFamily}"
                                   Margin="0,0,0,14"
-                                  Foreground="Black" />
+                                  Style="{StaticResource ThemedComboBox}" />
 
                         <TextBlock Text="Межстрочный интервал" Style="{StaticResource SettingLabel}" />
                         <Slider Minimum="1" Maximum="3"
@@ -505,9 +623,11 @@
 
     </DockPanel>
 
-        <!-- Подсказка о выходе из режима чтения. Маленькая плашка в правом
-             верхнем углу, видна только когда IsReadingMode=true. -->
-        <Border Visibility="{Binding IsReadingMode, Converter={StaticResource BoolToVis}}"
+        <!-- Подсказка о выходе из режима чтения. Через 3 секунды плавно
+             исчезает, чтобы не мешала чтению. Возвращается через
+             OnMouseMoveInReadingMode handler в code-behind. -->
+        <Border x:Name="ReadingModeHint"
+                Visibility="{Binding IsReadingMode, Converter={StaticResource BoolToVis}}"
                 HorizontalAlignment="Right" VerticalAlignment="Top"
                 Margin="16" Padding="10,5"
                 CornerRadius="4"

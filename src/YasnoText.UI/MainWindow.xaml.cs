@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using YasnoText.Core.TextProcessing;
 using YasnoText.Core.Tts;
@@ -51,6 +52,10 @@ public partial class MainWindow : Window
     private Point? _profileDragStartPoint;
     private ProfileItemViewModel? _profileDragSource;
 
+    /// <summary>Таймер, который скрывает «F11 — выйти» через ~3 секунды
+    /// после входа в режим чтения / последнего движения мыши.</summary>
+    private DispatcherTimer? _readingHintFadeTimer;
+
     /// <summary>Range каждого предложения в текущем FlowDocument:
     /// start/end — offset'ы в DocumentText, run — соответствующий WPF-Run для подсветки.</summary>
     private readonly List<(int start, int end, Run run)> _sentenceRuns = new();
@@ -91,6 +96,11 @@ public partial class MainWindow : Window
             new DragEventHandler(OnWindowDragLeave), handledEventsToo: true);
         AddHandler(DropEvent,
             new DragEventHandler(OnWindowDrop), handledEventsToo: true);
+
+        // Hint в reading mode: на mouse-move возвращается, через 3 секунды
+        // снова уплывает. Реагируем на PreviewMouseMove самого окна.
+        PreviewMouseMove += OnWindowPreviewMouseMoveForReadingHint;
+        _viewModel.PropertyChanged += OnViewModelPropertyChangedForReadingHint;
 
         // Drag-and-drop файла из проводника. Сама подписка через AllowDrop
         // и атрибуты DragOver/Drop в XAML — здесь только обработчики.
@@ -622,6 +632,13 @@ public partial class MainWindow : Window
 
     private void OnProfileCardDrop(object sender, DragEventArgs e)
     {
+        if (sender is Border border)
+        {
+            // Сбрасываем визуальный feedback от DragEnter.
+            border.ClearValue(Border.BorderBrushProperty);
+            border.ClearValue(Border.BorderThicknessProperty);
+        }
+
         if (!e.Data.GetDataPresent(ProfileCardDragFormat))
         {
             return;
@@ -639,6 +656,84 @@ public partial class MainWindow : Window
         // Останавливаем bubbling, чтобы дроп карточки не попал в Window-handler
         // (там обрабатывается дроп файлов из проводника).
         e.Handled = true;
+    }
+
+    private void OnProfileCardDragEnter(object sender, DragEventArgs e)
+    {
+        // Подсвечиваем только валидные цели: drag нашего формата, и target —
+        // пользовательский профиль (на built-in бросить нельзя).
+        if (!e.Data.GetDataPresent(ProfileCardDragFormat)) return;
+        if (sender is not Border border) return;
+        if (border.DataContext is not ProfileItemViewModel vm) return;
+        if (vm.Profile.IsBuiltIn) return;
+
+        border.BorderBrush = (Brush)FindResource("AccentBrush");
+        border.BorderThickness = new Thickness(2.5);
+    }
+
+    private void OnProfileCardDragLeave(object sender, DragEventArgs e)
+    {
+        if (sender is Border border)
+        {
+            border.ClearValue(Border.BorderBrushProperty);
+            border.ClearValue(Border.BorderThicknessProperty);
+        }
+    }
+
+    private void OnViewModelPropertyChangedForReadingHint(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainViewModel.IsReadingMode)) return;
+
+        if (_viewModel.IsReadingMode)
+        {
+            ShowReadingHint();
+            ScheduleReadingHintFade();
+        }
+        else
+        {
+            _readingHintFadeTimer?.Stop();
+            // Visibility управляется биндингом на IsReadingMode — здесь только
+            // сбрасываем Opacity, чтобы при следующем входе hint снова был виден.
+            ReadingModeHint.Opacity = 1;
+        }
+    }
+
+    private void OnWindowPreviewMouseMoveForReadingHint(object sender, MouseEventArgs e)
+    {
+        if (!_viewModel.IsReadingMode) return;
+        // Любое движение мыши в reading mode возвращает hint и пере-стартует таймер.
+        ShowReadingHint();
+        ScheduleReadingHintFade();
+    }
+
+    private void ShowReadingHint()
+    {
+        ReadingModeHint.BeginAnimation(UIElement.OpacityProperty, null);
+        ReadingModeHint.Opacity = 1;
+    }
+
+    private void ScheduleReadingHintFade()
+    {
+        if (_readingHintFadeTimer == null)
+        {
+            _readingHintFadeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _readingHintFadeTimer.Tick += (_, _) =>
+            {
+                _readingHintFadeTimer!.Stop();
+                if (!_viewModel.IsReadingMode) return;
+
+                var fade = new DoubleAnimation
+                {
+                    From = ReadingModeHint.Opacity,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(600),
+                };
+                ReadingModeHint.BeginAnimation(UIElement.OpacityProperty, fade);
+            };
+        }
+
+        _readingHintFadeTimer.Stop();
+        _readingHintFadeTimer.Start();
     }
 
     private void EnsureInnerScrollViewer()

@@ -56,6 +56,7 @@ public class MainViewModel : ViewModelBase
     private bool _isLoading;
     private bool _hasDocument;
     private string? _currentDocumentPath;
+    private string? _currentDocumentFileName;
     private bool _isReadingMode;
 
     private string _currentFontFamily = "Segoe UI";
@@ -155,6 +156,27 @@ public class MainViewModel : ViewModelBase
             MessageBoxButton.OK,
             MessageBoxImage.Information));
 
+        ShowHotkeysCommand = new RelayCommand(_ => MessageBox.Show(
+            "Файлы:" + Environment.NewLine +
+            "  Ctrl+O — открыть документ" + Environment.NewLine +
+            "  Ctrl+W — закрыть документ" + Environment.NewLine + Environment.NewLine +
+            "Профили:" + Environment.NewLine +
+            "  Ctrl+1 / Ctrl+2 / Ctrl+3 — встроенные профили" + Environment.NewLine +
+            "  Ctrl+S — сохранить настройки как новый профиль" + Environment.NewLine + Environment.NewLine +
+            "Размер шрифта:" + Environment.NewLine +
+            "  Ctrl+= / Ctrl+− — увеличить / уменьшить" + Environment.NewLine + Environment.NewLine +
+            "Озвучка:" + Environment.NewLine +
+            "  F5 — старт / пауза / продолжить" + Environment.NewLine +
+            "  Shift+F5 — остановить" + Environment.NewLine + Environment.NewLine +
+            "Режим чтения:" + Environment.NewLine +
+            "  F11 — войти / выйти" + Environment.NewLine +
+            "  Esc — выйти" + Environment.NewLine + Environment.NewLine +
+            "Документ:" + Environment.NewLine +
+            "  Средняя кнопка мыши — автопрокрутка (Esc для выхода)",
+            "Горячие клавиши",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information));
+
         RecentFiles = new ObservableCollection<string>(_recentFilesService.Load());
 
         // По умолчанию активен Стандартный профиль.
@@ -226,6 +248,19 @@ public class MainViewModel : ViewModelBase
     /// <summary>Удобный инверс для Visibility-биндинга без конвертера.</summary>
     public bool HasNoDocument => !_hasDocument;
 
+    /// <summary>Имя открытого файла (без пути). Используется в title окна.</summary>
+    public string? CurrentDocumentFileName
+    {
+        get => _currentDocumentFileName;
+        private set => SetProperty(ref _currentDocumentFileName, value);
+    }
+
+    /// <summary>Заголовок окна: «имя_файла — ЯсноТекст» или просто «ЯсноТекст».</summary>
+    public string WindowTitle =>
+        string.IsNullOrEmpty(_currentDocumentFileName)
+            ? "ЯсноТекст"
+            : $"{_currentDocumentFileName} — ЯсноТекст";
+
     /// <summary>Режим «только чтение» — скрывает меню, toolbar, sidebar и status bar.</summary>
     public bool IsReadingMode
     {
@@ -295,6 +330,7 @@ public class MainViewModel : ViewModelBase
     public ICommand StopSpeechCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
+    public ICommand ShowHotkeysCommand { get; }
 
     /// <summary>true пока синтезатор реально говорит (для биндинга подсветки и иконки).</summary>
     public bool IsSpeaking => _ttsService.State == SpeechState.Speaking;
@@ -745,6 +781,8 @@ public class MainViewModel : ViewModelBase
             _recentFilesService.Add(filePath);
             ReloadRecentFiles();
             _currentDocumentPath = filePath;
+            CurrentDocumentFileName = fileName;
+            OnPropertyChanged(nameof(WindowTitle));
         }
         catch (Exception ex)
         {
@@ -780,6 +818,8 @@ public class MainViewModel : ViewModelBase
         DocumentInfo = "Документ не открыт";
         HasDocument = false;
         _currentDocumentPath = null;
+        CurrentDocumentFileName = null;
+        OnPropertyChanged(nameof(WindowTitle));
     }
 
     private void TogglePlayPause()
