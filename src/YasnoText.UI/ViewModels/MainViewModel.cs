@@ -39,6 +39,10 @@ public class MainViewModel : ViewModelBase
     private const double MaxFontSize = 72;
     private const double FontStep = 1;
 
+    /// <summary>Сколько пользовательских профилей разрешено хранить.
+    /// Со встроенными вместе получается до 10 в списке.</summary>
+    private const int MaxUserProfiles = 7;
+
     private readonly IThemeApplier _themeApplier;
     private readonly ProfileManager _profileManager;
     private readonly RecentFilesService _recentFilesService;
@@ -49,6 +53,8 @@ public class MainViewModel : ViewModelBase
     private string _documentInfo = "Документ не открыт";
     private bool _isLoading;
     private bool _hasDocument;
+    private string? _currentDocumentPath;
+    private bool _isReadingMode;
 
     private string _currentFontFamily = "Segoe UI";
     private double _currentFontSize = 14;
@@ -112,6 +118,8 @@ public class MainViewModel : ViewModelBase
         CloseDocumentCommand = new RelayCommand(
             execute: _ => CloseDocument(),
             canExecute: _ => HasDocument && !IsLoading);
+
+        ToggleReadingModeCommand = new RelayCommand(_ => IsReadingMode = !IsReadingMode);
 
         IncreaseFontCommand = new RelayCommand(
             execute: _ => CurrentFontSize = Math.Min(MaxFontSize, CurrentFontSize + FontStep),
@@ -198,6 +206,22 @@ public class MainViewModel : ViewModelBase
     /// <summary>Удобный инверс для Visibility-биндинга без конвертера.</summary>
     public bool HasNoDocument => !_hasDocument;
 
+    /// <summary>Режим «только чтение» — скрывает меню, toolbar, sidebar и status bar.</summary>
+    public bool IsReadingMode
+    {
+        get => _isReadingMode;
+        set
+        {
+            if (SetProperty(ref _isReadingMode, value))
+            {
+                OnPropertyChanged(nameof(IsNotReadingMode));
+            }
+        }
+    }
+
+    /// <summary>Инверс для Visibility-биндинга элементов, видимых вне reading mode.</summary>
+    public bool IsNotReadingMode => !_isReadingMode;
+
     /// <summary>Шрифт, применяемый к области чтения в данный момент.</summary>
     public string CurrentFontFamily
     {
@@ -246,6 +270,7 @@ public class MainViewModel : ViewModelBase
     public ICommand IncreaseFontCommand { get; }
     public ICommand DecreaseFontCommand { get; }
     public ICommand SaveProfileCommand { get; }
+    public ICommand ToggleReadingModeCommand { get; }
     public ICommand ExitCommand { get; }
     public ICommand ShowAboutCommand { get; }
 
@@ -304,6 +329,18 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     private void SaveCurrentAsProfile()
     {
+        var userProfileCount = Profiles.Count(p => !p.Profile.IsBuiltIn);
+        if (userProfileCount >= MaxUserProfiles)
+        {
+            MessageBox.Show(
+                $"Нельзя хранить больше {MaxUserProfiles} пользовательских профилей. " +
+                "Удалите ненужный через правый клик по карточке и попробуйте снова.",
+                "ЯсноТекст",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
         var basis = ActiveProfile?.Profile ?? BuiltInProfiles.Standard;
 
         var newName = GenerateUniqueProfileName("Мой профиль");
@@ -428,6 +465,16 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // Тот же документ уже открыт — повторное чтение бессмысленно.
+        // Case-insensitive, потому что Windows-пути нормализуются по-разному
+        // (drag из проводника vs recent vs ручной выбор).
+        if (HasDocument &&
+            _currentDocumentPath != null &&
+            string.Equals(_currentDocumentPath, filePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         var fileName = Path.GetFileName(filePath);
 
         if (!File.Exists(filePath))
@@ -529,6 +576,7 @@ public class MainViewModel : ViewModelBase
             // Запоминаем файл в списке недавних только при успешном открытии.
             _recentFilesService.Add(filePath);
             ReloadRecentFiles();
+            _currentDocumentPath = filePath;
         }
         catch (Exception ex)
         {
@@ -562,5 +610,6 @@ public class MainViewModel : ViewModelBase
         DocumentText = string.Empty;
         DocumentInfo = "Документ не открыт";
         HasDocument = false;
+        _currentDocumentPath = null;
     }
 }

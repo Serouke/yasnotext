@@ -191,7 +191,8 @@
     <DockPanel>
 
         <!-- Главное меню -->
-        <Menu DockPanel.Dock="Top">
+        <Menu DockPanel.Dock="Top"
+              Visibility="{Binding IsNotReadingMode, Converter={StaticResource BoolToVis}}">
             <MenuItem Header="Файл">
                 <MenuItem Header="Открыть..."
                           InputGestureText="Ctrl+O"
@@ -240,6 +241,10 @@
                 <MenuItem Header="Уменьшить шрифт"
                           InputGestureText="Ctrl+-"
                           Command="{Binding DecreaseFontCommand}" />
+                <Separator />
+                <MenuItem Header="Режим чтения"
+                          InputGestureText="F11"
+                          Command="{Binding ToggleReadingModeCommand}" />
             </MenuItem>
             <MenuItem Header="Справка">
                 <MenuItem Header="О программе" Command="{Binding ShowAboutCommand}" />
@@ -248,6 +253,7 @@
 
         <!-- Панель инструментов: только то, что реально работает. -->
         <Border DockPanel.Dock="Top"
+                Visibility="{Binding IsNotReadingMode, Converter={StaticResource BoolToVis}}"
                 Background="{DynamicResource WindowBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
@@ -283,20 +289,12 @@
                         Command="{Binding IncreaseFontCommand}"
                         FontWeight="SemiBold"
                         Style="{StaticResource ToolbarButton}" />
-
-                <Rectangle Width="1" Margin="10,4"
-                           Fill="{DynamicResource BorderBrush}" />
-
-                <Button x:Name="AutoScrollButton"
-                        Content="Автопрокрутка"
-                        Click="OnAutoScrollButtonClick"
-                        ToolTip="Включить автопрокрутку. Также — щелчок средней кнопкой мыши по документу. Выход — Esc или любой клик."
-                        Style="{StaticResource ToolbarButton}" />
             </StackPanel>
         </Border>
 
         <!-- Строка состояния -->
         <Border DockPanel.Dock="Bottom"
+                Visibility="{Binding IsNotReadingMode, Converter={StaticResource BoolToVis}}"
                 Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0"
@@ -319,11 +317,26 @@
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" />
+                <!-- В режиме чтения колонка sidebar схлопывается до нуля,
+                     иначе при Visibility=Collapsed на самом Border пустые
+                     240 px остаются. -->
+                <ColumnDefinition>
+                    <ColumnDefinition.Style>
+                        <Style TargetType="ColumnDefinition">
+                            <Setter Property="Width" Value="240" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsReadingMode}" Value="True">
+                                    <Setter Property="Width" Value="0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ColumnDefinition.Style>
+                </ColumnDefinition>
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
+                    Visibility="{Binding IsNotReadingMode, Converter={StaticResource BoolToVis}}"
                     Background="{DynamicResource SidebarBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,1,0">
@@ -446,6 +459,19 @@
         </Grid>
 
     </DockPanel>
+
+        <!-- Подсказка о выходе из режима чтения. Маленькая плашка в правом
+             верхнем углу, видна только когда IsReadingMode=true. -->
+        <Border Visibility="{Binding IsReadingMode, Converter={StaticResource BoolToVis}}"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="16" Padding="10,5"
+                CornerRadius="4"
+                Background="#A0606060"
+                IsHitTestVisible="False">
+            <TextBlock Text="F11 — выйти из режима чтения"
+                       Foreground="White"
+                       FontSize="11" />
+        </Border>
 
         <!-- Overlay при drag-and-drop файла. IsHitTestVisible=False, чтобы
              события Drop/DragLeave доходили до Window — иначе drop попадал бы
