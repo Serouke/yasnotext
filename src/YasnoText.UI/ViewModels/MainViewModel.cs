@@ -518,8 +518,8 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Перезаписывает выбранный профиль текущими настройками
-    /// (FontFamily/Size/LineHeight). Имя, тема, цвета остаются.</summary>
+    /// <summary>Перезаписывает выбранный профиль полным состоянием активного —
+    /// шрифт, размер, межстрочный, цвета и тему. Имя и Id у target сохраняются.</summary>
     private void OverwriteProfile(ProfileItemViewModel vm)
     {
         if (vm.Profile.IsBuiltIn)
@@ -527,8 +527,15 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        var source = ActiveProfile?.Profile;
+        if (source == null)
+        {
+            return;
+        }
+
         var confirm = MessageBox.Show(
-            $"Перезаписать «{vm.Profile.Name}» текущими настройками шрифта и межстрочного интервала?",
+            $"Перезаписать «{vm.Profile.Name}» текущими настройками («{source.Name}»)? " +
+            "Будут сохранены шрифт, размер, межстрочный интервал и цветовая тема.",
             "ЯсноТекст",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -538,9 +545,19 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // Раньше копировали только текстовые параметры (FontFamily/Size/LineHeight),
+        // а Colors и BaseThemeId не трогали. Пользователь видел: активировал
+        // overwrite'нутый профиль — шрифт правильный, а тема осталась старая.
+        // Теперь копируем всё, что отражается в визуале.
         vm.Profile.FontFamily = CurrentFontFamily;
         vm.Profile.FontSize = CurrentFontSize;
         vm.Profile.LineHeight = CurrentLineHeight;
+        vm.Profile.IsBold = source.IsBold;
+        vm.Profile.LetterSpacing = source.LetterSpacing;
+        vm.Profile.WordSpacing = source.WordSpacing;
+        vm.Profile.Colors = source.Colors;
+        vm.Profile.BaseThemeId = source.BaseThemeId;
+
         _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
 
         // Если перезаписан активный — пере-применим, чтобы новые значения
