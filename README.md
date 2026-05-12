@@ -157,6 +157,17 @@ cd yasnotext
 dotnet run --project src/YasnoText.UI
 ```
 
+**Готовая сборка (single-file .exe, не требует установленного .NET):**
+
+```bash
+dotnet publish src/YasnoText.UI -c Release -p:PublishProfile=win-x64
+```
+
+Результат: `src/YasnoText.UI/bin/Release/net10.0-windows/win-x64/publish/YasnoText.UI.exe`
+(плюс `tessdata/` рядом — копируется автоматически). Папку можно
+архивировать целиком и раздавать — на машине-приёмнике достаточно
+Windows 10/11 x64.
+
 ### Установка языковых моделей Tesseract
 
 Без этого OCR-функции (открытие PDF-сканов и изображений) не работают.
