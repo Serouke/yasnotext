@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:YasnoText.UI.ViewModels"
         mc:Ignorable="d"
-        Title="ЯсноТекст"
+        Title="{Binding WindowTitle}"
         Height="720"
         Width="1180"
         MinHeight="500"
@@ -280,6 +280,8 @@
                           Command="{Binding StopSpeechCommand}" />
             </MenuItem>
             <MenuItem Header="Справка">
+                <MenuItem Header="Горячие клавиши..." Command="{Binding ShowHotkeysCommand}" />
+                <Separator />
                 <MenuItem Header="О программе" Command="{Binding ShowAboutCommand}" />
             </MenuItem>
         </Menu>
