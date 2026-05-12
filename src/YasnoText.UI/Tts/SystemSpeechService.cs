@@ -63,6 +63,16 @@ public sealed class SystemSpeechService : ITextToSpeechService
     public void Stop()
     {
         if (_disposed) return;
+
+        // Известный квирк System.Speech: SpeakAsyncCancelAll, вызванный когда
+        // синтезатор в состоянии Paused, не выкидывает текущую очередь.
+        // Когда пользователь потом нажмёт «Продолжить», диктор просто
+        // продолжит читать с того места, на котором остановился. Сначала
+        // снимаем паузу, потом отменяем — теперь Stop действительно стопает.
+        if (_synth.State == SynthesizerState.Paused)
+        {
+            _synth.Resume();
+        }
         _synth.SpeakAsyncCancelAll();
     }
 
