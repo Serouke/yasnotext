@@ -426,7 +426,8 @@ public class MainViewModel : ViewModelBase
         var dialog = new ProfileNameDialog(
             "Сохранить как новый профиль",
             $"Имя нового профиля (на основе «{basis.Name}»):",
-            defaultName)
+            defaultName,
+            forbiddenNames: Profiles.Select(p => p.Profile.Name))
         {
             Owner = Application.Current.MainWindow
         };
@@ -486,10 +487,17 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        // При переименовании текущее имя профиля не считается «занятым» —
+        // иначе пользователь не сможет нажать ОК без правок.
+        var forbidden = Profiles
+            .Where(p => p != vm)
+            .Select(p => p.Profile.Name);
+
         var dialog = new ProfileNameDialog(
             "Переименовать профиль",
             "Новое имя профиля:",
-            vm.Profile.Name)
+            vm.Profile.Name,
+            forbiddenNames: forbidden)
         {
             Owner = Application.Current.MainWindow
         };
