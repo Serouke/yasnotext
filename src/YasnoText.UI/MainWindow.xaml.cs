@@ -5,6 +5,9 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
+using YasnoText.Core.TextProcessing;
+using YasnoText.Core.Tts;
 using YasnoText.UI.Themes;
 using YasnoText.UI.ViewModels;
 
@@ -48,17 +51,25 @@ public partial class MainWindow : Window
     private Point? _profileDragStartPoint;
     private ProfileItemViewModel? _profileDragSource;
 
+    /// <summary>Range каждого предложения в текущем FlowDocument:
+    /// start/end — offset'ы в DocumentText, run — соответствующий WPF-Run для подсветки.</summary>
+    private readonly List<(int start, int end, Run run)> _sentenceRuns = new();
+    private Run? _currentlyHighlightedRun;
+
     public MainWindow()
     {
         InitializeComponent();
 
-        _viewModel = new MainViewModel(new WpfThemeApplier());
+        _viewModel = new MainViewModel(
+            new WpfThemeApplier(),
+            new YasnoText.UI.Tts.SystemSpeechService());
         DataContext = _viewModel;
 
         // FlowDocument строится в code-behind, потому что у FlowDocument
         // нет ItemsSource или биндинга к строке — нужен явный пересбор
         // блоков при изменении текста или межстрочного интервала.
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _viewModel.SpeechProgress += OnSpeechProgress;
         UpdateReadingDocument();
 
         // Автопрокрутка. Middle-click ловим через PreviewMouseDown viewer'а;
@@ -116,6 +127,14 @@ public partial class MainWindow : Window
         InputBindings.Add(new KeyBinding(
             _viewModel.ToggleReadingModeCommand,
             Key.F11, ModifierKeys.None));
+
+        // Озвучка: F5 — старт/пауза/продолжить, Shift+F5 — стоп.
+        InputBindings.Add(new KeyBinding(
+            _viewModel.PlayPauseCommand,
+            Key.F5, ModifierKeys.None));
+        InputBindings.Add(new KeyBinding(
+            _viewModel.StopSpeechCommand,
+            Key.F5, ModifierKeys.Shift));
 
         // Изменение размера шрифта. OemPlus/OemMinus — это «=/+» и «-» на
         // основной части клавиатуры, Add/Subtract — на numpad.
@@ -202,16 +221,31 @@ public partial class MainWindow : Window
             // При загрузке нового документа автопрокрутка — лишний сюрприз.
             StopAutoScroll();
         }
+
+        // Если озвучка ушла в Stopped — снимаем подсветку, чтобы последнее
+        // прочитанное предложение не оставалось залитым.
+        if (e.PropertyName == nameof(MainViewModel.IsSpeaking) ||
+            e.PropertyName == nameof(MainViewModel.PlayPauseLabel))
+        {
+            if (!_viewModel.IsSpeaking && !_viewModel.IsPaused)
+            {
+                ClearSpeechHighlight();
+            }
+        }
     }
 
     /// <summary>
-    /// Пересобирает FlowDocument из текущего DocumentText, разбивая текст на
-    /// параграфы по двойному переносу строки. Виртуализация WPF работает
-    /// на уровне Paragraph-блоков, поэтому один большой Run на 250-страничный
-    /// документ не сработал бы — скролл всё равно лагал бы.
+    /// Пересобирает FlowDocument из текущего DocumentText. Каждый параграф
+    /// дополнительно разбивается на предложения через SentenceSplitter —
+    /// под каждое предложение свой Run. Список (offset, end, run) хранится в
+    /// _sentenceRuns: handler SpeechProgress находит по нему текущий Run и
+    /// подсвечивает фон.
     /// </summary>
     private void UpdateReadingDocument()
     {
+        ClearSpeechHighlight();
+        _sentenceRuns.Clear();
+
         var text = _viewModel.DocumentText ?? string.Empty;
 
         var fontFamily = new System.Windows.Media.FontFamily(_viewModel.CurrentFontFamily);
@@ -225,27 +259,152 @@ public partial class MainWindow : Window
             LineHeight = _viewModel.EffectiveLineHeight,
         };
 
-        var paragraphs = text.Split(ParagraphSeparators, StringSplitOptions.None);
-        foreach (var paragraphText in paragraphs)
+        // Разбор с учётом глобальных offset'ов: System.Speech даёт CharacterPosition
+        // относительно строки, скормленной в Speak() — это весь DocumentText. Чтобы
+        // найти Run, мы знаем точную координату каждого предложения в этой строке.
+        var pos = 0;
+        while (pos <= text.Length)
         {
-            if (string.IsNullOrEmpty(paragraphText))
+            var nextSepIdx = FindNextParagraphSeparator(text, pos, out var separatorLength);
+            var paraEnd = nextSepIdx < 0 ? text.Length : nextSepIdx;
+            var paraText = text.Substring(pos, paraEnd - pos);
+
+            if (!string.IsNullOrEmpty(paraText))
             {
-                continue;
+                var paragraph = new Paragraph
+                {
+                    FontFamily = fontFamily,
+                    FontSize = fontSize,
+                };
+
+                var sentences = SentenceSplitter.Split(paraText);
+                if (sentences.Count == 0)
+                {
+                    // На случай если SentenceSplitter ничего не вернул (только пробелы):
+                    // добавляем один Run на весь параграф, чтобы порядок Inlines был
+                    // консистентен с текстом.
+                    var run = new Run(paraText);
+                    paragraph.Inlines.Add(run);
+                    _sentenceRuns.Add((pos, pos + paraText.Length, run));
+                }
+                else
+                {
+                    var written = 0;
+                    foreach (var s in sentences)
+                    {
+                        // Восстанавливаем «соединительные» пробелы между предложениями —
+                        // они в исходном тексте есть, но SentenceSplitter их съел.
+                        if (s.Offset > written)
+                        {
+                            paragraph.Inlines.Add(new Run(paraText.Substring(written, s.Offset - written)));
+                        }
+
+                        var run = new Run(s.Text);
+                        paragraph.Inlines.Add(run);
+                        _sentenceRuns.Add((pos + s.Offset, pos + s.Offset + s.Length, run));
+                        written = s.Offset + s.Length;
+                    }
+
+                    if (written < paraText.Length)
+                    {
+                        paragraph.Inlines.Add(new Run(paraText.Substring(written)));
+                    }
+                }
+
+                doc.Blocks.Add(paragraph);
             }
 
-            // FontSize/FontFamily задаются и на FlowDocument, и на Paragraph:
-            // в WPF наследование TextElement-свойств от программно созданного
-            // FlowDocument к его блокам срабатывает не во всех конфигурациях
-            // FlowDocumentScrollViewer (A+/A− меняли только LineHeight, шрифт
-            // оставался прежним). Локальная установка на Paragraph — гарантия.
-            doc.Blocks.Add(new Paragraph(new Run(paragraphText))
-            {
-                FontFamily = fontFamily,
-                FontSize = fontSize,
-            });
+            if (nextSepIdx < 0) break;
+            pos = nextSepIdx + separatorLength;
         }
 
         ReadingViewer.Document = doc;
+    }
+
+    /// <summary>Находит ближайший разделитель параграфов \r\n\r\n или \n\n,
+    /// возвращает его offset и точную длину (4 или 2).</summary>
+    private static int FindNextParagraphSeparator(string text, int startIndex, out int separatorLength)
+    {
+        var crlf = text.IndexOf("\r\n\r\n", startIndex, StringComparison.Ordinal);
+        var lf = text.IndexOf("\n\n", startIndex, StringComparison.Ordinal);
+
+        if (crlf < 0 && lf < 0)
+        {
+            separatorLength = 0;
+            return -1;
+        }
+        if (crlf < 0)
+        {
+            separatorLength = 2;
+            return lf;
+        }
+        if (lf < 0 || crlf <= lf)
+        {
+            separatorLength = 4;
+            return crlf;
+        }
+        separatorLength = 2;
+        return lf;
+    }
+
+    private void OnSpeechProgress(object? sender, SpeechProgressEventArgs e)
+    {
+        // SystemSpeechService поднимает событие из своего потока. На UI
+        // нельзя трогать Run.Background, поэтому маршалим — BeginInvoke,
+        // чтобы не блокировать TTS-callback.
+        Dispatcher.BeginInvoke(
+            new Action(() => HighlightSentenceAt(e.CharacterPosition)),
+            DispatcherPriority.Background);
+    }
+
+    private void HighlightSentenceAt(int characterPosition)
+    {
+        // Ищем предложение, в которое попадает текущая позиция произнесения.
+        // Список упорядочен по offset, поэтому достаточно линейного поиска —
+        // даже на 1000 предложений это микросекунды.
+        Run? target = null;
+        foreach (var (start, end, run) in _sentenceRuns)
+        {
+            if (characterPosition >= start && characterPosition < end)
+            {
+                target = run;
+                break;
+            }
+        }
+
+        if (target == null || target == _currentlyHighlightedRun)
+        {
+            return;
+        }
+
+        ClearSpeechHighlight();
+
+        target.Background = GetSentenceHighlightBrush();
+        _currentlyHighlightedRun = target;
+
+        // Подталкиваем viewport, чтобы предложение всегда было видно — иначе
+        // на длинном документе озвучка убегает вниз, а текст стоит вверху.
+        try { target.BringIntoView(); } catch { /* во время анимации может бросать */ }
+    }
+
+    private void ClearSpeechHighlight()
+    {
+        if (_currentlyHighlightedRun != null)
+        {
+            _currentlyHighlightedRun.Background = null;
+            _currentlyHighlightedRun = null;
+        }
+    }
+
+    /// <summary>Полупрозрачный AccentBrush текущей темы — на любой палитре виден.</summary>
+    private Brush GetSentenceHighlightBrush()
+    {
+        if (Application.Current?.Resources["AccentBrush"] is SolidColorBrush accent)
+        {
+            var c = accent.Color;
+            return new SolidColorBrush(Color.FromArgb(96, c.R, c.G, c.B));
+        }
+        return new SolidColorBrush(Color.FromArgb(96, 100, 180, 255));
     }
 
     private void OnReadingViewerPreviewMouseDown(object sender, MouseButtonEventArgs e)

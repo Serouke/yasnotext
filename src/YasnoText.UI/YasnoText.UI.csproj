@@ -4,6 +4,13 @@
     <ProjectReference Include="..\YasnoText.Core\YasnoText.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- System.Speech.Synthesis вынесли из BCL в отдельный NuGet начиная
+         с .NET Core. Только Windows; для нашего desktop-приложения это
+         подходит. -->
+    <PackageReference Include="System.Speech" Version="10.0.0" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
