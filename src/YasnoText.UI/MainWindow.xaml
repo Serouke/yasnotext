@@ -282,6 +282,7 @@
                     PreviewMouseLeftButtonDown="OnProfileCardPreviewMouseDown"
                     MouseMove="OnProfileCardMouseMove"
                     DragEnter="OnProfileCardDragEnter"
+                    DragOver="OnProfileCardDragOver"
                     DragLeave="OnProfileCardDragLeave"
                     Drop="OnProfileCardDrop">
                 <Border.InputBindings>
