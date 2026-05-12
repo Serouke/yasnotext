@@ -88,10 +88,11 @@ public class MainViewModel : ViewModelBase
         };
 
         Profiles = new ObservableCollection<ProfileItemViewModel>(
-            _profileManager.LoadAll().Select(p => new ProfileItemViewModel(
+            _profileManager.LoadAll().Select(p => CreateItemVm(
                 p,
-                hotkeys.TryGetValue(p.Id, out var hk) ? hk : string.Empty,
-                onDelete: DeleteProfile)));
+                hotkeys.TryGetValue(p.Id, out var hk) ? hk : string.Empty)));
+        UserProfiles = new ObservableCollection<ProfileItemViewModel>(
+            Profiles.Where(p => !p.Profile.IsBuiltIn));
 
         SelectProfileCommand = new RelayCommand(p =>
         {
@@ -149,6 +150,13 @@ public class MainViewModel : ViewModelBase
     }
 
     public ObservableCollection<ProfileItemViewModel> Profiles { get; }
+
+    /// <summary>Только пользовательские профили — для подменю
+    /// «Сохранить в существующий» и для drag-n-drop reorder.</summary>
+    public ObservableCollection<ProfileItemViewModel> UserProfiles { get; }
+
+    /// <summary>Есть ли пользовательские профили (для IsEnabled подменю).</summary>
+    public bool HasUserProfiles => UserProfiles.Count > 0;
 
     public IReadOnlyList<string> AvailableFonts => AvailableFontsList;
 
@@ -343,7 +351,21 @@ public class MainViewModel : ViewModelBase
 
         var basis = ActiveProfile?.Profile ?? BuiltInProfiles.Standard;
 
-        var newName = GenerateUniqueProfileName("Мой профиль");
+        var defaultName = GenerateUniqueProfileName("Мой профиль");
+        var dialog = new ProfileNameDialog(
+            "Сохранить как новый профиль",
+            $"Имя нового профиля (на основе «{basis.Name}»):",
+            defaultName)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var newName = dialog.EnteredName;
         var newProfile = new ReadingProfile
         {
             Id = $"custom-{Guid.NewGuid():N}".Substring(0, 12),
@@ -362,15 +384,93 @@ public class MainViewModel : ViewModelBase
             BaseThemeId = basis.BaseThemeId
         };
 
-        var newVm = new ProfileItemViewModel(
-            newProfile,
-            hotkey: string.Empty,
-            onDelete: DeleteProfile);
+        var newVm = CreateItemVm(newProfile, hotkey: string.Empty);
         Profiles.Add(newVm);
+        UserProfiles.Add(newVm);
+        OnPropertyChanged(nameof(HasUserProfiles));
 
         _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
 
         ActivateProfile(newVm);
+    }
+
+    /// <summary>Фабричный метод для ProfileItemViewModel — подсовывает
+    /// все нужные callback'и единообразно.</summary>
+    private ProfileItemViewModel CreateItemVm(ReadingProfile profile, string hotkey)
+    {
+        return new ProfileItemViewModel(
+            profile,
+            hotkey,
+            onDelete: DeleteProfile,
+            onActivate: ActivateProfile,
+            onRename: RenameProfile,
+            onOverwrite: OverwriteProfile);
+    }
+
+    /// <summary>Спрашивает у пользователя новое имя и переименовывает профиль.</summary>
+    private void RenameProfile(ProfileItemViewModel vm)
+    {
+        if (vm.Profile.IsBuiltIn)
+        {
+            return;
+        }
+
+        var dialog = new ProfileNameDialog(
+            "Переименовать профиль",
+            "Новое имя профиля:",
+            vm.Profile.Name)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        vm.Profile.Name = dialog.EnteredName;
+        vm.NotifyNameChanged();
+        _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
+
+        // Если переименовали активный — обновить статус-бар.
+        if (ActiveProfile == vm)
+        {
+            OnPropertyChanged(nameof(StatusText));
+        }
+    }
+
+    /// <summary>Перезаписывает выбранный профиль текущими настройками
+    /// (FontFamily/Size/LineHeight). Имя, тема, цвета остаются.</summary>
+    private void OverwriteProfile(ProfileItemViewModel vm)
+    {
+        if (vm.Profile.IsBuiltIn)
+        {
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Перезаписать «{vm.Profile.Name}» текущими настройками шрифта и межстрочного интервала?",
+            "ЯсноТекст",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        vm.Profile.FontFamily = CurrentFontFamily;
+        vm.Profile.FontSize = CurrentFontSize;
+        vm.Profile.LineHeight = CurrentLineHeight;
+        _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
+
+        // Если перезаписан активный — пере-применим, чтобы новые значения
+        // попали в Current* (на случай, если пользователь крутил слайдеры
+        // после активации этого профиля и перезаписывает «на лету»).
+        if (ActiveProfile == vm)
+        {
+            ActivateProfile(vm);
+        }
     }
 
     /// <summary>
@@ -393,12 +493,41 @@ public class MainViewModel : ViewModelBase
 
         var wasActive = ActiveProfile == vm;
         Profiles.Remove(vm);
+        UserProfiles.Remove(vm);
+        OnPropertyChanged(nameof(HasUserProfiles));
         _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
 
         if (wasActive)
         {
             ActivateProfile(Profiles.First());
         }
+    }
+
+    /// <summary>
+    /// Drag-n-drop reorder пользовательских профилей. Встроенные не двигаются
+    /// и не могут стать целью drop'а — они всегда сверху списка.
+    /// </summary>
+    public void MoveProfile(ProfileItemViewModel source, ProfileItemViewModel target)
+    {
+        if (source == target) return;
+        if (source.Profile.IsBuiltIn) return;
+        if (target.Profile.IsBuiltIn) return;
+
+        var sourceIdx = Profiles.IndexOf(source);
+        var targetIdx = Profiles.IndexOf(target);
+        if (sourceIdx < 0 || targetIdx < 0) return;
+
+        Profiles.Move(sourceIdx, targetIdx);
+
+        // UserProfiles держим синхронным — её используют меню/dnd.
+        var userSrc = UserProfiles.IndexOf(source);
+        var userDst = UserProfiles.IndexOf(target);
+        if (userSrc >= 0 && userDst >= 0)
+        {
+            UserProfiles.Move(userSrc, userDst);
+        }
+
+        _profileManager.SaveUserProfiles(Profiles.Select(p => p.Profile));
     }
 
     private string GenerateUniqueProfileName(string baseName)

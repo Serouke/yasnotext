@@ -163,18 +163,29 @@
         </Style>
 
         <DataTemplate x:Key="ProfileCardTemplate" DataType="{x:Type vm:ProfileItemViewModel}">
-            <Border Style="{StaticResource ProfileCardBorder}">
+            <Border Style="{StaticResource ProfileCardBorder}"
+                    AllowDrop="True"
+                    PreviewMouseLeftButtonDown="OnProfileCardPreviewMouseDown"
+                    MouseMove="OnProfileCardMouseMove"
+                    Drop="OnProfileCardDrop">
                 <Border.InputBindings>
                     <MouseBinding MouseAction="LeftClick"
-                                  Command="{Binding DataContext.SelectProfileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                  CommandParameter="{Binding}" />
+                                  Command="{Binding ActivateCommand}" />
                 </Border.InputBindings>
                 <Border.ContextMenu>
                     <!-- ContextMenu в WPF — отдельный visual tree (Popup), поэтому
                          RelativeSource AncestorType=Window отсюда не работает.
-                         Команда живёт прямо на ProfileItemViewModel и для встроенных
-                         профилей делается серой через CanExecute. -->
+                         Все команды живут на ProfileItemViewModel и для встроенных
+                         профилей серые через CanExecute. -->
                     <ContextMenu>
+                        <MenuItem Header="Активировать"
+                                  Command="{Binding ActivateCommand}" />
+                        <Separator />
+                        <MenuItem Header="Переименовать..."
+                                  Command="{Binding RenameCommand}" />
+                        <MenuItem Header="Сохранить настройки в этот профиль"
+                                  Command="{Binding OverwriteCommand}" />
+                        <Separator />
                         <MenuItem Header="Удалить профиль"
                                   Command="{Binding DeleteCommand}" />
                     </ContextMenu>
@@ -221,18 +232,32 @@
                 <MenuItem Header="Выход" Command="{Binding ExitCommand}" />
             </MenuItem>
             <MenuItem Header="Профиль">
-                <MenuItem Header="Стандартный"
-                          InputGestureText="Ctrl+1"
-                          Command="{Binding SelectProfileCommand}"
-                          CommandParameter="{Binding Profiles[0]}" />
-                <MenuItem Header="Слабовидение"
-                          InputGestureText="Ctrl+2"
-                          Command="{Binding SelectProfileCommand}"
-                          CommandParameter="{Binding Profiles[1]}" />
-                <MenuItem Header="Дислексия"
-                          InputGestureText="Ctrl+3"
-                          Command="{Binding SelectProfileCommand}"
-                          CommandParameter="{Binding Profiles[2]}" />
+                <!-- Активные профили — встроенные с хоткеями + пользовательские
+                     в том же списке. ItemsSource биндится к Profiles, поэтому
+                     добавление/удаление/переименование сразу отражаются в меню. -->
+                <MenuItem Header="Активировать" ItemsSource="{Binding Profiles}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding Name}" />
+                            <Setter Property="Command" Value="{Binding ActivateCommand}" />
+                            <Setter Property="InputGestureText" Value="{Binding Hotkey}" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="Сохранить как новый профиль..."
+                          InputGestureText="Ctrl+S"
+                          Command="{Binding SaveProfileCommand}" />
+                <MenuItem Header="Сохранить настройки в..."
+                          ItemsSource="{Binding UserProfiles}"
+                          IsEnabled="{Binding HasUserProfiles}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding Name}" />
+                            <Setter Property="Command" Value="{Binding OverwriteCommand}" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="Вид">
                 <MenuItem Header="Увеличить шрифт"
