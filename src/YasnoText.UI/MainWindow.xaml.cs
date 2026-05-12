@@ -267,7 +267,7 @@ public partial class MainWindow : Window
 
         var text = _viewModel.DocumentText ?? string.Empty;
 
-        var fontFamily = new System.Windows.Media.FontFamily(_viewModel.CurrentFontFamily);
+        var fontFamily = ResolveFontFamily(_viewModel.CurrentFontFamily);
         var fontSize = _viewModel.CurrentFontSize;
 
         var doc = new FlowDocument
@@ -413,6 +413,24 @@ public partial class MainWindow : Window
             _currentlyHighlightedRun.Background = null;
             _currentlyHighlightedRun = null;
         }
+    }
+
+    /// <summary>
+    /// Превращает имя шрифта из VM в WPF FontFamily. Для «OpenDyslexic»
+    /// возвращает embedded-ресурс из Resources/Fonts; для остальных —
+    /// обычный системный шрифт. Если у пользователя установлен системный
+    /// OpenDyslexic, его всё равно перекрывает встроенный — это намеренно,
+    /// чтобы все одинаково видели один и тот же глиф.
+    /// </summary>
+    private static System.Windows.Media.FontFamily ResolveFontFamily(string name)
+    {
+        if (string.Equals(name, "OpenDyslexic", StringComparison.OrdinalIgnoreCase))
+        {
+            return new System.Windows.Media.FontFamily(
+                new Uri("pack://application:,,,/"),
+                "./Resources/Fonts/#OpenDyslexic");
+        }
+        return new System.Windows.Media.FontFamily(name);
     }
 
     /// <summary>Полупрозрачный AccentBrush текущей темы — на любой палитре виден.</summary>

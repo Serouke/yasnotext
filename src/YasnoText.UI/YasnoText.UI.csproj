@@ -11,6 +11,16 @@
     <PackageReference Include="System.Speech" Version="10.0.0" />
   </ItemGroup>
 
+  <!-- Шрифт OpenDyslexic встраивается как Resource — никаких системных
+       установок, путь через pack:// в FontFamily. OFL.txt рядом
+       копируется в output, чтобы лицензия раздавалась вместе с .exe. -->
+  <ItemGroup>
+    <Resource Include="Resources\Fonts\OpenDyslexic-Regular.otf" />
+    <Content Include="Resources\Fonts\OFL.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
