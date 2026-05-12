@@ -42,6 +42,12 @@ public partial class MainWindow : Window
     private TimeSpan _autoScrollLastFrameTime;
     private ScrollViewer? _innerScrollViewer;
 
+    /// <summary>Внутренний идентификатор формата для drag-and-drop профилей.</summary>
+    private const string ProfileCardDragFormat = "YasnoText.ProfileCard";
+
+    private Point? _profileDragStartPoint;
+    private ProfileItemViewModel? _profileDragSource;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -405,6 +411,75 @@ public partial class MainWindow : Window
             _innerScrollViewer.ScrollToVerticalOffset(
                 _innerScrollViewer.VerticalOffset + pxThisFrame);
         }
+    }
+
+    private void OnProfileCardPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // Сохраняем точку начала жеста — drag начинается только если
+        // пользователь сдвинул мышь дальше системного порога. Голый клик
+        // отрабатывает обычной InputBinding'ой (Activate).
+        if (sender is FrameworkElement el && el.DataContext is ProfileItemViewModel vm
+            && !vm.Profile.IsBuiltIn)
+        {
+            _profileDragStartPoint = e.GetPosition(null);
+            _profileDragSource = vm;
+        }
+        else
+        {
+            _profileDragStartPoint = null;
+            _profileDragSource = null;
+        }
+    }
+
+    private void OnProfileCardMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_profileDragStartPoint == null || _profileDragSource == null)
+        {
+            return;
+        }
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            _profileDragStartPoint = null;
+            _profileDragSource = null;
+            return;
+        }
+
+        var diff = e.GetPosition(null) - _profileDragStartPoint.Value;
+        if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        if (sender is FrameworkElement el)
+        {
+            var data = new DataObject(ProfileCardDragFormat, _profileDragSource);
+            DragDrop.DoDragDrop(el, data, DragDropEffects.Move);
+        }
+
+        _profileDragStartPoint = null;
+        _profileDragSource = null;
+    }
+
+    private void OnProfileCardDrop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(ProfileCardDragFormat))
+        {
+            return;
+        }
+
+        var source = e.Data.GetData(ProfileCardDragFormat) as ProfileItemViewModel;
+        if (source == null) return;
+
+        if (sender is FrameworkElement el &&
+            el.DataContext is ProfileItemViewModel target)
+        {
+            _viewModel.MoveProfile(source, target);
+        }
+
+        // Останавливаем bubbling, чтобы дроп карточки не попал в Window-handler
+        // (там обрабатывается дроп файлов из проводника).
+        e.Handled = true;
     }
 
     private void EnsureInnerScrollViewer()
