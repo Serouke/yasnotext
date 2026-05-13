@@ -1,0 +1,24 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Цвета: бежевый фон вместо белого (снижает «ослепляющий эффект») -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E8D5B0" />
+    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#E8D5B0" />
+    <SolidColorBrush x:Key="ReadingBackgroundBrush" Color="#F4E8D0" />
+    <SolidColorBrush x:Key="TextBrush" Color="#4A3520" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#6B4F2C" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#6B4F2C" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#8B6F47" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#F4E8D0" />
+
+    <!-- Шрифты: Georgia как заглушка для OpenDyslexic -->
+    <FontFamily x:Key="UIFontFamily">Georgia</FontFamily>
+    <FontFamily x:Key="ReadingFontFamily">Georgia</FontFamily>
+
+    <!-- Размеры: расширенная высота строки -->
+    <sys:Double x:Key="ReadingFontSize">18</sys:Double>
+    <sys:Double x:Key="ReadingLineHeight">40</sys:Double>
+    <FontWeight x:Key="ReadingFontWeight">Normal</FontWeight>
+
+</ResourceDictionary>
