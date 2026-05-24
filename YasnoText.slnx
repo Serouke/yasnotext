@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/YasnoText.Core/YasnoText.Core.csproj" />
+    <Project Path="src/YasnoText.Tests/YasnoText.Tests.csproj" />
+    <Project Path="src/YasnoText.UI/YasnoText.UI.csproj" />
+  </Folder>
+</Solution>

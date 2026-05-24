@@ -1,0 +1,59 @@
+<Window x:Class="YasnoText.UI.ProfileNameDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ЯсноТекст"
+        Height="170" Width="400"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="{DynamicResource UIFontFamily}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="PromptLabel"
+                   Grid.Row="0"
+                   Text="Имя профиля:"
+                   Margin="0,0,0,6"
+                   Foreground="{DynamicResource TextBrush}" />
+
+        <TextBox x:Name="NameTextBox"
+                 Grid.Row="1"
+                 Padding="6,4"
+                 FontSize="13"
+                 Foreground="Black"
+                 Background="White"
+                 BorderBrush="{DynamicResource BorderBrush}"
+                 BorderThickness="1" />
+
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,16,0,0">
+            <Button Content="ОК"
+                    Click="OnOkClick"
+                    IsDefault="True"
+                    Padding="22,6"
+                    Margin="0,0,8,0"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand" />
+            <Button Content="Отмена"
+                    Click="OnCancelClick"
+                    IsCancel="True"
+                    Padding="22,6"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    Cursor="Hand" />
+        </StackPanel>
+    </Grid>
+</Window>

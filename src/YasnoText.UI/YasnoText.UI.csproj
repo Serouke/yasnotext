@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\YasnoText.Core\YasnoText.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- System.Speech.Synthesis вынесли из BCL в отдельный NuGet начиная
+         с .NET Core. Только Windows; для нашего desktop-приложения это
+         подходит. -->
+    <PackageReference Include="System.Speech" Version="10.0.0" />
+  </ItemGroup>
+
+  <!-- Шрифт OpenDyslexic встраивается как Resource — никаких системных
+       установок, путь через pack:// в FontFamily. OFL.txt рядом
+       копируется в output, чтобы лицензия раздавалась вместе с .exe. -->
+  <ItemGroup>
+    <Resource Include="Resources\Fonts\OpenDyslexic-Regular.otf" />
+    <Content Include="Resources\Fonts\OFL.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <!-- Языковые модели Tesseract лежат в /tessdata в корне репо
+       и не коммитятся (см. .gitignore). При сборке они копируются
+       в bin/.../tessdata/ рядом с .exe — сервис ищет их там. -->
+  <ItemGroup>
+    <Content Include="..\..\tessdata\*.traineddata" Link="tessdata\%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,80 @@
+# Visual Studio / .NET
+bin/
+obj/
+*.suo
+*.user
+*.userprefs
+*.cache
+.vs/
+.vscode/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio temporary files
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Tesseract data files (большие, скачиваются отдельно)
+tessdata/*.traineddata
+src/YasnoText.UI/tessdata/*.traineddata
+
+# Локальные настройки и тестовые файлы
+appsettings.local.json
+#test-files/
+*.pdf
+*.docx
+*.djvu
+!docs/**/*.pdf
+!docs/**/*.docx
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup
+*.bak
+*.swp
+*~
+
+# Тестовые PDF и DOCX должны коммититься
+!test-files/*.pdf
+!test-files/*.docx
